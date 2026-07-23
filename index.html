@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Filtry podle VIN — test</title>
+<script>
+// ── Konfigurace ─ stejný endpoint jako ostrá verze ─────────────
+window.GAS_URL = 'https://script.google.com/macros/s/AKfycbztDbYh8df3_sE_PLFkg75VCxmw9gaDfraj72ulveGb4StgJO_ZdwHJdK2m6fXvRF5pNg/exec';
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#2563eb;--blue-dark:#1d4ed8;--blue-light:#eff6ff;--blue-mid:#bfdbfe;
+  --text:#1e293b;--text-muted:#64748b;--border:#e2e8f0;
+  --bg:#f8fafc;--white:#fff;--green:#16a34a;--green-light:#f0fdf4;--green-border:#bbf7d0;
+  --red:#ef4444;--amber:#b45309;--amber-light:#fffbeb;--amber-border:#fde68a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:22px 16px 70px}
+h1{font-size:20px;margin:0 0 4px;font-weight:700}
+.sub{color:var(--text-muted);font-size:13px;margin-bottom:20px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
+.section-title{font-weight:700;font-size:15px;margin-bottom:4px}
+.section-sub{color:var(--text-muted);font-size:13px;margin-bottom:14px}
+.vin-input{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:14px;
+  font-family:Inter,sans-serif;font-size:15px;font-weight:600;color:var(--text);
+  letter-spacing:.06em;text-transform:uppercase;outline:none;transition:border-color .2s}
+.vin-input:focus{border-color:var(--blue)}
+.vin-input::placeholder{color:#cbd5e1;font-weight:400;letter-spacing:.02em;font-size:13px;text-transform:none}
+.btn{width:100%;margin-top:12px;padding:15px;background:var(--blue);border:none;border-radius:14px;
+  font-family:Inter,sans-serif;font-weight:700;font-size:16px;color:#fff;cursor:pointer}
+.btn:active{background:var(--blue-dark)}
+.btn:disabled{background:#cbd5e1;cursor:not-allowed}
+.box{padding:12px 14px;border-radius:12px;font-size:13.5px;line-height:1.55;margin-bottom:14px;display:none}
+.box.visible{display:block}
+.box.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+.box.warn{background:var(--amber-light);border:1px solid var(--amber-border);color:var(--amber)}
+.auto-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:12px}
+.auto-name{font-weight:700;font-size:17px}
+.auto-meta{color:var(--text-muted);font-size:13px}
+.tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:7px;background:var(--blue-light);color:var(--blue)}
+.tag.q{background:var(--amber-light);color:var(--amber)}
+.rows{border-top:1px solid var(--border);padding-top:12px;display:grid;gap:6px}
+.row{display:flex;justify-content:space-between;font-size:13.5px;gap:12px}
+.row span:first-child{color:var(--text-muted)}
+.row span:last-child{font-weight:600;text-align:right}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px;margin-top:14px}
+.f{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--bg)}
+.f.kab{border-color:var(--blue-mid);background:var(--blue-light)}
+.f-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.f-name{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700}
+.f-price{font-size:17px;font-weight:700;white-space:nowrap}
+.f-part{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--text-muted);margin:6px 0 8px;word-break:break-all}
+.f-link{font-size:12.5px;color:var(--blue);text-decoration:none;font-weight:600}
+.f-link:hover{text-decoration:underline}
+.f.none{opacity:.6}.f.none .f-price{font-size:13px;color:var(--text-muted)}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;margin-top:7px;
+  background:var(--amber-light);color:var(--amber);font-weight:700;border:1px solid var(--amber-border)}
+.total{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:baseline}
+.total b{font-size:20px;font-weight:700}
+.alt{margin-top:6px;font-size:13px;color:var(--text-muted)}
+.alt button{background:none;border:none;color:var(--blue);font:inherit;font-weight:600;cursor:pointer;padding:0;text-decoration:underline}
+.foot{margin-top:20px;font-size:12px;color:var(--text-muted);line-height:1.7}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Filtry podle VIN</h1>
+  <div class="sub">Testovací verze · ceny Bosch z Pegasu · ověřuj před objednávkou</div>
+
+  <div class="card">
+    <div class="section-title">Zadejte VIN vozidla</div>
+    <div class="section-sub">Načte se z registru vozidel — značka, model, kód motoru a výkon.</div>
+    <input type="text" class="vin-input" id="vinInput" maxlength="17"
+      placeholder="např. TMBBH25J383087742" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn" id="vinBtn" onclick="nactiVin()">Načíst filtry</button>
+  </div>
+
+  <div class="box err" id="errBox"></div>
+  <div class="box warn" id="warnBox"></div>
+  <div id="out"></div>
+
+  <div class="foot">
+    Kabinový filtr je daný generací vozu, ostatní motorem.<br>
+    Cena je nejlevnější <b>přiřazená</b> nabídka Bosch — ne nutně nejlevnější pasující díl.
+  </div>
+</div>
+
+<script>
+var B64='QnJhbmRQcm9kdWN0RmllbGRzRmlsdGVyJTVCMCU1RD0yMDI1';
+var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
+var CAT={o:['Olejový','olejovy-filtr'],v:['Vzduchový','vzduchovy-filtr'],
+         k:['Kabinový','kabinovy-vzduchovy-filtr'],p:['Palivový','palivovy-filtr']};
+var DATA=[], stav={};
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function odkaz(slug,typ){return BASE+typ+'?filter='+B64+'&v='+encodeURIComponent(slug)}
+function chyba(t){$('errBox').textContent=t;$('errBox').classList.add('visible')}
+function varovani(h){$('warnBox').innerHTML=h;$('warnBox').classList.add('visible')}
+function reset(){['errBox','warnBox'].forEach(function(i){$(i).classList.remove('visible')});$('out').innerHTML=''}
+
+fetch('data.json').then(function(r){return r.json()}).then(function(d){DATA=d})
+  .catch(function(){chyba('Nepodařilo se načíst data.json — musí ležet vedle téhle stránky.')});
+
+// Značka z registru ("ŠKODA") na název v katalogu ("Škoda")
+function normZnacka(z){
+  var s=(z||'').toUpperCase();
+  if(s.indexOf('SKODA')>=0||s.indexOf('ŠKODA')>=0) return 'Škoda';
+  if(s.indexOf('SEAT')>=0) return 'Seat';
+  if(s.indexOf('VOLKSWAGEN')>=0||s==='VW') return 'VW';
+  return null;
+}
+// ── Kód motoru ────────────────────────────────────────────────
+// Kód se z Varianty NEEXTRAHUJE (formát se liší podle značky:
+//   Škoda ABBZGX01 / ABCHYBX01, Seat BCBX0SG).
+// Místo toho se projdou kódy z katalogu a hledá se, který z nich
+// je ve Variantě obsažen. Vyhrává NEJDELŠÍ shoda — krátké kódy
+// (např. 1Z) by se jinak trefily skoro do čehokoli.
+function najdiKod(radky,varianta,kodMotoru){
+  var v=(varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var k=(kodMotoru||'').toUpperCase().trim();
+  var nej=null;
+  if(v){
+    radky.forEach(function(x){ x.k.forEach(function(c){
+      if(c.length>=2 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c; })});
+    if(nej) return {kod:nej,zdroj:'varianta'};
+  }
+  // Fallback: zkrácený kód z registru (CHY místo CHYB) — obousměrný prefix
+  if(k){
+    var m=null;
+    radky.forEach(function(x){ x.k.forEach(function(c){
+      if((c.indexOf(k)===0||k.indexOf(c)===0) && (!m||c.length>m.length)) m=c; })});
+    if(m) return {kod:m,zdroj:'kodMotoru'};
+  }
+  return {kod:null,zdroj:null};
+}
+function maKod(x,kod){ return x.k.indexOf(kod)>=0 }
+
+function nactiVin(){
+  var vin=$('vinInput').value.trim().toUpperCase();
+  $('vinInput').value=vin; reset();
+  if(vin.length!==17){chyba('VIN musí mít přesně 17 znaků.');return}
+  if(/[IOQ]/.test(vin)){chyba('VIN nesmí obsahovat písmena I, O nebo Q.');return}
+  if(!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)){chyba('VIN obsahuje nepovolené znaky.');return}
+
+  var btn=$('vinBtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  fetch(window.GAS_URL+'?vin='+vin,{redirect:'follow'})
+    .then(function(r){return r.json()})
+    .then(function(data){
+      btn.disabled=false; btn.textContent='Načíst filtry';
+      if(data.error){chyba(data.error);return}
+      stav={vin:vin,znacka:data.znacka,model:data.model,typ:data.typ,varianta:data.varianta,
+            kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
+            vykon:data.vykon?String(data.vykon).split('/')[0].trim():''};
+      spojSKatalogem();
+    })
+    .catch(function(){
+      btn.disabled=false; btn.textContent='Načíst filtry';
+      chyba('Nepodařilo se připojit k registru. Zkuste znovu.');
+    });
+}
+
+// Pořadí: značka → model → kW (zúžení) → kód motoru.
+// Rok se nepoužívá — z dat vyplynulo, že sporné případy neřeší.
+function spojSKatalogem(){
+  var zn=normZnacka(stav.znacka);
+  var kw=parseInt(stav.vykon,10)||0;
+  var mdl=(stav.model||'').toUpperCase().trim();
+
+  if(!DATA.length){hlavicka(null,kw,null);chyba('Data katalogu se nenačetla.');return}
+  if(!zn){hlavicka(null,kw,null);
+    varovani('Značka <b>'+esc(stav.znacka)+'</b> zatím není v datech — jsou tam Škoda, Seat a VW.');return}
+
+  // 1) značka
+  var kandidati=DATA.filter(function(x){return x.z===zn});
+
+  // 2) model z registru. Registr může přidat karoserii ("OCTAVIA COMBI"),
+  //    proto se zkouší celý název a pak se ubírají slova zprava,
+  //    dokud něco nesedne: OCTAVIA COMBI → OCTAVIA → Octavia I..IV.
+  //    "GOLF PLUS" se tím trefí přesně dřív, než spadne na "GOLF".
+  var podleModelu=[], pouzityModel='';
+  if(mdl){
+    var slova=mdl.split(/\s+/).filter(Boolean);
+    for(var d=slova.length; d>0 && !podleModelu.length; d--){
+      var zk=slova.slice(0,d).join(' ');
+      podleModelu=kandidati.filter(function(x){
+        return x.m.toUpperCase().indexOf(zk)===0});
+      if(podleModelu.length) pouzityModel=zk;
+    }
+  }
+  var modelSedi=podleModelu.length>0;
+  if(modelSedi) kandidati=podleModelu;
+
+  // 3) kW jako pojistka — zmenší množinu kódů, tím klesá riziko falešné shody
+  var uzke=kw?kandidati.filter(function(x){return parseInt(x.kw,10)===kw}):[];
+
+  // 4) kód motoru — nejdřív v zúžené množině, teprve pak v širší
+  var r=uzke.length?najdiKod(uzke,stav.varianta,stav.kodMotoru):{kod:null,zdroj:null};
+  var kwSedi=true;
+  if(!r.kod){
+    r=najdiKod(kandidati,stav.varianta,stav.kodMotoru);
+    if(r.kod) kwSedi=false;
+  }
+
+  hlavicka(r.kod,kw,r.zdroj);
+
+  if(mdl&&!modelSedi){
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu. '+
+      'Hledá se napříč celou značkou '+esc(zn)+' — zkontroluj výsledek.');
+  } else if(modelSedi&&pouzityModel!==mdl){
+    varovani('Model z registru je <b>'+esc(stav.model)+'</b>, v katalogu se hledalo podle '+
+      '<b>'+esc(pouzityModel)+'</b> — karoserii katalog nerozlišuje.');
+  }
+  if(!r.kod){
+    varovani('Motor se nepodařilo spárovat. Varianta <b>'+esc(stav.varianta||'—')+
+      '</b> ani kód <b>'+esc(stav.kodMotoru||'—')+'</b> nesedí na nic v katalogu'+
+      (modelSedi?' u modelu '+esc(stav.model):'')+'. Ceny urči ručně a řádek si poznamenej.');
+    return;
+  }
+  if(!kwSedi&&kw){
+    varovani('Výkon <b>'+kw+' kW</b> z registru nesedí na žádný řádek s kódem '+
+      esc(r.kod)+'. Zobrazeny všechny výkonové verze — ověř podle objemu.');
+  }
+  if(r.zdroj==='kodMotoru'){
+    varovani('Kód se nenašel ve Variantě, použit zkrácený <b>'+esc(stav.kodMotoru)+
+      '</b> z registru. Zkontroluj, že vybraná motorizace sedí.');
+  }
+
+  var zaklad=(kwSedi&&uzke.length)?uzke:kandidati;
+  var vyber=zaklad.filter(function(x){return maKod(x,r.kod)});
+  if(!vyber.length) vyber=kandidati.filter(function(x){return maKod(x,r.kod)});
+
+  $('out').innerHTML+=vyber.map(function(x){return karta(x,vyber.length>1)}).join('');
+  if(vyber.length>1){
+    $('out').innerHTML+='<div class="alt">Kód <b>'+esc(r.kod)+
+      '</b> sedí na víc vozů — rozliš podle objemu a roků.</div>';
+  }
+}
+
+function hlavicka(kod,kw,zdroj){
+  $('out').innerHTML=
+    '<div class="card"><div class="auto-head">'+
+      '<span class="auto-name">'+esc(stav.znacka)+' '+esc(stav.model)+'</span>'+
+      '<span class="tag'+(kod?(zdroj==='kodMotoru'?' q':''):' q')+'">'+
+        esc(kod||'kód nenalezen')+'</span>'+
+    '</div><div class="rows">'+
+      radek('Kód motoru z registru',stav.kodMotoru)+
+      radek('Varianta',stav.varianta)+
+      radek('Výkon',kw?kw+' kW':'')+
+      radek('Objem',stav.objem?stav.objem+' cm³':'')+
+      radek('Palivo',stav.palivo)+
+      radek('Typ (nespolehlivý)',stav.typ)+
+    '</div></div>';
+}
+function radek(k,v){return v?'<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>':''}
+
+function karta(x,ukazatNazev){
+  var sum=0,chybi=0;
+  var fs=Object.keys(CAT).map(function(c){
+    var f=x.f[c], kab=(c==='k'?' kab':'');
+    if(!f){chybi++;return '<div class="f none"><div class="f-top">'+
+      '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">—</span></div>'+
+      '<div class="f-part">nepřiřazeno</div>'+
+      '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.s,CAT[c][1])+'">Zkusit bez značky ↗</a></div>'}
+    sum+=f.c||0;
+    return '<div class="f'+kab+'"><div class="f-top">'+
+      '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">'+f.c+' Kč</span></div>'+
+      '<div class="f-part">'+esc(f.d)+'</div>'+
+      '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.s,CAT[c][1])+'">Otevřít na Pegasu ↗</a>'+
+      (f.v>1?'<span class="badge">'+f.v+' varianty — ověř</span>':'')+'</div>'}).join('');
+  return '<div class="card">'+
+    (ukazatNazev?'<div class="auto-head"><span class="auto-name">'+esc(x.mo)+' '+esc(x.kw)+' kW</span>'+
+      '<span class="auto-meta">'+esc(x.r)+' · '+esc(x.p)+'</span>'+
+      '<span class="tag">'+esc(x.k.join(' / '))+'</span></div>':'')+
+    '<div class="filters">'+fs+'</div>'+
+    '<div class="total"><span>Filtry celkem'+(chybi?' ('+chybi+' chybí)':'')+'</span><b>'+sum+' Kč</b></div></div>';
+}
+
+$('vinInput').addEventListener('keydown',function(e){if(e.key==='Enter')nactiVin()});
+</script>
+</body>
+</html>
