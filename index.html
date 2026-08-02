@@ -352,55 +352,77 @@ function rimskaZModelu(m){
   var r=/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/.exec(m);
   return r?r[1]:null;
 }
+// Rozsah let generace z rozsahů let motorizací
+function rozsahLet(skupina){
+  var od=0,doR=0;
+  skupina.forEach(function(x){
+    var r=/(\d{4})\D+(\d{4})/.exec(x.roky||'')||/(\d{4})/.exec(x.roky||'');
+    if(r){var a=parseInt(r[1],10), b=parseInt(r[2]||r[1],10);
+      if(!od||a<od) od=a; if(b>doR) doR=b;}
+  });
+  return od?(od+'–'+(doR||'')):'';
+}
+// Stav ručního výběru: model → generace → palivo → motorizace
+var R={vozy:[],gen:null,pal:null};
+
+function genKlic(x){
+  var rim=rimskaZModelu(x.model);
+  return rim?('R'+RIM.indexOf(rim)):('Y'+rokGenerace(x.slug));
+}
 function rucniModel(){
   var zn=$('selZn').value, m=$('selMo').value; reset();
-  $('mtList').innerHTML='';
+  $('mtList').innerHTML=''; R={vozy:[],gen:null,pal:null,model:m,zn:zn};
   if(!m) return;
-  var vsechny=KATALOG[zn].vozy;
-  var vozy=vsechny.filter(function(x){return zakladniModel(x.model)===m});
-  // Klíč generace: římská číslice z názvu modelu, jinak rok ze slugu.
-  var klice=[];
-  vozy.forEach(function(x){
-    var rim=rimskaZModelu(x.model);
-    var k=rim?('R'+RIM.indexOf(rim)):('Y'+rokGenerace(x.slug));
-    x.__gen=k;
-    if(klice.indexOf(k)<0) klice.push(k);
-  });
+  R.vozy=KATALOG[zn].vozy.filter(function(x){return zakladniModel(x.model)===m});
+  // Generace: unikátní klíče, seřazené vzestupně
+  var klice=[]; R.vozy.forEach(function(x){var k=genKlic(x);
+    if(klice.indexOf(k)<0) klice.push(k)});
   klice.sort(function(a,b){return parseInt(a.slice(1),10)-parseInt(b.slice(1),10)});
+  R.gener=klice;
+  if(klice.length===1) R.gen=klice[0];   // jen jedna → přeskočit krok
+  krokyRucni();
+}
+function zvolGen(k){ R.gen=k; R.pal=null; krokyRucni(); }
+function zvolPal(p){ R.pal=p; krokyRucni(); }
+
+function krokyRucni(){
   var html='';
-  klice.forEach(function(k,gi){
-    var skupina=vozy.filter(function(x){return x.__gen===k});
-    if(klice.length>1){
-      var rim=rimskaZModelu(skupina[0].model);
-      // Rozsah let generace = od nejstaršího do nejnovějšího roku
-      // motorizací. Číslování se nedomýšlí — chybějící generace
-      // (nescrapovaná Ibiza I) by posunula všechna čísla.
-      var od=0,doR=0;
-      skupina.forEach(function(x){
-        var r=/(\d{4})\D+(\d{4})/.exec(x.roky||'')||/(\d{4})/.exec(x.roky||'');
-        if(r){var a=parseInt(r[1],10), b=parseInt(r[2]||r[1],10);
-          if(!od||a<od) od=a; if(b>doR) doR=b;}
-      });
-      var rokSlug=rokGenerace(skupina[0].slug);
-      html+='<div class="mt-gen">'+esc(m)+(rim?' '+rim:'')+
-        (od?' <span class="mt-roky">'+od+'–'+(doR||'')+'</span>':
-            (rokSlug?' <span class="mt-roky">od '+rokSlug+'</span>':''))+'</div>';
-    }
-    // Uvnitř generace rozdělit benzin / nafta, seřadit dle objemu a kW
-    var paliva=[]; skupina.forEach(function(x){
-      if(paliva.indexOf(x.palivo)<0) paliva.push(x.palivo)});
-    paliva.forEach(function(pal){
-      var cast=skupina.filter(function(x){return x.palivo===pal});
-      cast.sort(function(a,b){return a.motor===b.motor?
-        parseInt(a.vykon_kw,10)-parseInt(b.vykon_kw,10):a.motor.localeCompare(b.motor,'cs')});
-      if(paliva.length>1) html+='<div class="mt-pal">'+esc(pal)+'</div>';
-      html+='<div class="mt-list">'+cast.map(function(x){
-        return '<button class="mt-row" onclick="rucniMotorIdx('+vsechny.indexOf(x)+',this)">'+
-          '<span><span class="mt-motor">'+esc(x.motor)+' · '+esc(x.vykon_kw)+' kW</span><br>'+
-          '<span class="mt-roky">'+esc(x.roky)+'</span></span>'+
-          '<span class="mt-kody">'+esc(x.kody.join(' '))+'</span></button>'}).join('')+'</div>';
-    });
-  });
+  // ── Krok: generace ─────────────────────────────────────────
+  if(R.gener&&R.gener.length>1){
+    html+='<div class="mt-pal">Generace</div><div class="chips">'+R.gener.map(function(k){
+      var sk=R.vozy.filter(function(x){return genKlic(x)===k});
+      var rim=rimskaZModelu(sk[0].model);
+      return '<button class="chip'+(R.gen===k?' on':'')+'" onclick="zvolGen(\''+k+'\')">'+
+        esc(R.model)+(rim?' '+rim:'')+' <span style="font-weight:400">'+rozsahLet(sk)+'</span></button>';
+    }).join('')+'</div>';
+  }
+  if(!R.gen){ $('mtList').innerHTML=html; return; }
+
+  var vGen=R.vozy.filter(function(x){return genKlic(x)===R.gen});
+
+  // ── Krok: palivo ───────────────────────────────────────────
+  var paliva=[]; vGen.forEach(function(x){
+    if(paliva.indexOf(x.palivo)<0) paliva.push(x.palivo)});
+  if(paliva.length>1){
+    html+='<div class="mt-pal">Palivo</div><div class="chips">'+paliva.map(function(p){
+      var n=vGen.filter(function(x){return x.palivo===p}).length;
+      return '<button class="chip'+(R.pal===p?' on':'')+'" onclick="zvolPal(\''+esc(p)+'\')">'+
+        esc(p)+' <span style="font-weight:400">('+n+')</span></button>';
+    }).join('')+'</div>';
+  } else R.pal=paliva[0]||null;
+  if(!R.pal){ $('mtList').innerHTML=html; return; }
+
+  // ── Krok: motorizace ───────────────────────────────────────
+  var vsechny=KATALOG[R.zn].vozy;
+  var cast=vGen.filter(function(x){return x.palivo===R.pal});
+  cast.sort(function(a,b){return a.motor===b.motor?
+    parseInt(a.vykon_kw,10)-parseInt(b.vykon_kw,10):a.motor.localeCompare(b.motor,'cs')});
+  html+='<div class="mt-pal">Motorizace ('+cast.length+')</div><div class="mt-list">'+
+    cast.map(function(x){
+      return '<button class="mt-row" onclick="rucniMotorIdx('+vsechny.indexOf(x)+',this)">'+
+        '<span><span class="mt-motor">'+esc(x.motor)+' · '+esc(x.vykon_kw)+' kW</span><br>'+
+        '<span class="mt-roky">'+esc(x.roky)+'</span></span>'+
+        '<span class="mt-kody">'+esc(x.kody.join(' '))+'</span></button>'}).join('')+'</div>';
   $('mtList').innerHTML=html;
 }
 function rucniMotorIdx(i,el){
