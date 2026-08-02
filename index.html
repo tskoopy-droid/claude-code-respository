@@ -316,15 +316,40 @@ function rucniZnacka(){
     $('selMo').disabled=false;
   }).catch(function(){chyba('Katalog '+zn+' se nepodařilo načíst.')});
 }
+// Rok začátku generace ze slugu: "seat--alhambra-2010--1.4-tsi…" → 2010.
+// Registr ani model generaci nenese, proto se v rámci modelu roky
+// seřadí a očíslují automaticky: nejstarší = I, další = II, III…
+function rokGenerace(slug){
+  var m=/^[^-]+(?:-[^-]+)*?--.*?-(\d{4})--/.exec(slug);
+  if(m) return parseInt(m[1],10);
+  var casti=slug.split('--');
+  if(casti.length>=2){var r=/(\d{4})$/.exec(casti[1]); if(r) return parseInt(r[1],10)}
+  return 0;
+}
+var RIM=['I','II','III','IV','V','VI','VII','VIII'];
 function rucniModel(){
   var zn=$('selZn').value, m=$('selMo').value; reset();
   $('selMt').innerHTML='<option value="">Motorizace…</option>'; $('selMt').disabled=true;
   if(!m) return;
-  var vozy=KATALOG[zn].vozy.filter(function(x){return x.model===m});
-  vozy.forEach(function(x,i){
-    var o=document.createElement('option');o.value=String(KATALOG[zn].vozy.indexOf(x));
-    o.textContent=x.motor+' '+x.vykon_kw+' kW · '+x.kody.join('/')+' · '+x.roky;
-    $('selMt').appendChild(o)});
+  var vsechny=KATALOG[zn].vozy;
+  var vozy=vsechny.filter(function(x){return x.model===m});
+  // Generace: unikátní roky ze slugů, vzestupně → I, II, III…
+  var roky=[]; vozy.forEach(function(x){var r=rokGenerace(x.slug);
+    if(roky.indexOf(r)<0) roky.push(r)});
+  roky.sort(function(a,b){return a-b});
+  roky.forEach(function(r,gi){
+    var skupina=vozy.filter(function(x){return rokGenerace(x.slug)===r});
+    var cil=$('selMt');
+    if(roky.length>1){
+      cil=document.createElement('optgroup');
+      cil.label=m+' '+(RIM[gi]||(gi+1))+(r?' (od '+r+')':'');
+      $('selMt').appendChild(cil);
+    }
+    skupina.forEach(function(x){
+      var o=document.createElement('option');o.value=String(vsechny.indexOf(x));
+      o.textContent=x.motor+' '+x.vykon_kw+' kW · '+x.kody.join('/')+' · '+x.roky;
+      cil.appendChild(o)});
+  });
   $('selMt').disabled=false;
 }
 function rucniMotor(){
