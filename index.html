@@ -333,7 +333,7 @@ function spojSKatalogem(){
     if(!vyber.length) vyber=kandidati.filter(function(x){return maKod(x,r.kod)});
 
     // Stav výsledku: kód je daný z VIN, chipy netřeba
-    V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni'}}),
+    V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
        vice:vyber.length>1};
     render();
   }).catch(function(){
@@ -467,7 +467,7 @@ function rucniMotorIdx(i,el){
     vuz.filtry[k].forEach(function(f){if(f.kody&&f.kody.length)rozlisuje=true})});
   V={vozy:[vuz],kod:vuz.kody.length===1?vuz.kody[0]:null,
      chipy:(vuz.kody.length>1&&rozlisuje)?vuz.kody.slice():null,
-     karty:[{rozbal:{},kab:'zakladni'}],vice:false,rucni:true};
+     karty:[{rozbal:{},kab:'zakladni',volba:{}}],vice:false,rucni:true};
   render();
   $('out').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -559,7 +559,12 @@ function karta(x,ci){
         '<div class="f-part">nepřiřazeno</div>'+
         '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1])+'">Otevřít na Pegasu ↗</a></div>';
     }
-    var w=vitez(vsechny);
+    // Vítěz podle priority, nebo díl ručně zvolený z "dalších variant"
+    var w=null;
+    if(ks.volba[c]){
+      w=vsechny.filter(function(f){return f.dil===ks.volba[c]})[0]||null;
+    }
+    if(!w) w=vitez(vsechny);
 
     // Kabinové varianty: základní / uhlíkový / premium přes cross-ref na díl
     var varianty=null, aktivni=w;
@@ -586,7 +591,8 @@ function karta(x,ci){
 
     return '<div class="f'+kab+'"><div class="f-top">'+
       '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">'+cena(aktivni)+' Kč</span></div>'+
-      '<div class="f-brand">'+esc(aktivni.znacka)+'</div>'+
+      '<div class="f-brand">'+esc(aktivni.znacka)+
+        (ks.volba[c]?' <span class="badge b" style="margin:0">ručně</span>':'')+'</div>'+
       '<div class="f-part">'+esc(aktivni.dil)+'</div>'+
       (varianty?'<div class="vars">'+varianty.map(function(v){
         return '<button class="var-btn'+(v.f===aktivni?' on':'')+
@@ -598,7 +604,11 @@ function karta(x,ci){
         (rozbal?'<div class="more-list">'+ostatni.map(function(f){
           return '<div class="alt-row"><span><b>'+esc(f.znacka)+'</b> <span class="p">'+esc(f.dil)+'</span>'+
             (f.kody&&f.kody.length?' <span class="badge b" style="margin:0">jen '+esc(f.kody.join(', '))+'</span>':'')+
-            '</span><b>'+cena(f)+' Kč</b></div>'}).join('')+'</div>':'')+
+            '<br><button class="more-btn" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">Vybrat</button>'+
+            ' · <a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1])+'">Pegas ↗</a>'+
+            '</span><b>'+cena(f)+' Kč</b></div>'}).join('')+
+          (ks.volba[c]?'<button class="more-btn" style="margin-top:4px" onclick="zvolDil('+ci+',\''+c+'\',null)">← Zpět na automatický výběr</button>':'')+
+          '</div>':'')+
         '</div>':'')+
       '</div>';
   }).join('');
@@ -613,6 +623,12 @@ function karta(x,ci){
 
 function prepniKab(ci,id){ V.karty[ci].kab=id; render(); }
 function rozbalDalsi(ci,c){ V.karty[ci].rozbal[c]=!V.karty[ci].rozbal[c]; render(); }
+// Ruční volba dílu z "dalších variant"; null = zpět na automatiku
+function zvolDil(ci,c,dil){
+  V.karty[ci].volba[c]=dil;
+  if(c==='kabinovy') V.karty[ci].kab='zakladni';
+  render();
+}
 
 $('vinInput').addEventListener('keydown',function(e){if(e.key==='Enter')nactiVin()});
 </script>
