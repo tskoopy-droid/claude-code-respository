@@ -143,12 +143,12 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 
 <script>
 // ── Datové soubory po značkách — nový formát (scraper v4+) ────
-// logo: soubor ve složce "logo" vedle stránky. Když chybí,
+// logo: soubor vedle stránky (logoskoda.png…). Když chybí,
 // dlaždice se vykreslí jen s názvem — nic se nerozbije.
-var SOUBORY={'Škoda':{f:'skoda.json',logo:'logo/skoda.png'},
-             'VW':{f:'vw.json',logo:'logo/vw.png'},
-             'Seat':{f:'seat.json',logo:'logo/seat.png'},
-             'Audi':{f:'audi.json',logo:'logo/audi.png'}};
+var SOUBORY={'Škoda':{f:'skoda.json',logo:'logoskoda.png'},
+             'VW':{f:'vw.json',logo:'logovw.png'},
+             'Seat':{f:'seat.json',logo:'logoseat.png'},
+             'Audi':{f:'audi.json',logo:'logoaudi.png'}};
 var KATALOG={};              // načtená data: značka -> {vozy:[...]}
 var B64='QnJhbmRQcm9kdWN0RmllbGRzRmlsdGVyJTVCMCU1RD0yMDI1';
 var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
