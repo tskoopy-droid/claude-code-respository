@@ -53,6 +53,15 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .chip{padding:7px 14px;border-radius:10px;border:2px solid var(--border);background:var(--white);
   font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer}
 .chip.on{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.zn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:10px;margin-bottom:4px}
+.zn-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  padding:14px 8px;border:2px solid var(--border);border-radius:14px;background:var(--white);
+  cursor:pointer;font-family:Inter,sans-serif}
+.zn-tile:active,.zn-tile.on{border-color:var(--blue);background:var(--blue-light)}
+.zn-tile img{height:34px;width:auto;max-width:100%;object-fit:contain}
+.zn-tile .nm{font-size:12.5px;font-weight:700;color:var(--text-muted)}
+.zn-tile.on .nm{color:var(--blue)}
+.zn-fallback{height:34px;display:flex;align-items:center;font-size:15px;font-weight:700;color:var(--text-muted)}
 .mt-gen{font-weight:700;font-size:14px;margin:14px 0 2px}
 .mt-pal{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);
   font-weight:700;margin:10px 0 6px}
@@ -116,7 +125,7 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
   <div class="card">
     <div class="section-title">…nebo vyberte ručně</div>
     <div class="section-sub">Když VIN nesedí nebo vůz není v registru.</div>
-    <select id="selZn" onchange="rucniZnacka()"><option value="">Značka…</option></select>
+    <div class="zn-grid" id="znGrid"></div>
     <select id="selMo" onchange="rucniModel()" disabled><option value="">Model…</option></select>
     <div id="mtList"></div>
   </div>
@@ -134,7 +143,12 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 
 <script>
 // ── Datové soubory po značkách — nový formát (scraper v4+) ────
-var SOUBORY={'Seat':'seat.json','Škoda':'skoda.json','VW':'vw.json'};
+// logo: soubor ve složce "logo" vedle stránky. Když chybí,
+// dlaždice se vykreslí jen s názvem — nic se nerozbije.
+var SOUBORY={'Škoda':{f:'skoda.json',logo:'logo/skoda.png'},
+             'VW':{f:'vw.json',logo:'logo/vw.png'},
+             'Seat':{f:'seat.json',logo:'logo/seat.png'},
+             'Audi':{f:'audi.json',logo:'logo/audi.png'}};
 var KATALOG={};              // načtená data: značka -> {vozy:[...]}
 var B64='QnJhbmRQcm9kdWN0RmllbGRzRmlsdGVyJTVCMCU1RD0yMDI1';
 var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
@@ -158,18 +172,31 @@ function reset(){['errBox','warnBox'].forEach(function(i){$(i).classList.remove(
 // ── Načtení katalogu značky (lazy, cache) ─────────────────────
 function nactiKatalog(zn){
   if(KATALOG[zn]) return Promise.resolve(KATALOG[zn]);
-  var soubor=SOUBORY[zn];
-  if(!soubor) return Promise.reject('neznama');
-  return fetch(soubor).then(function(r){
+  var cfg=SOUBORY[zn];
+  if(!cfg) return Promise.reject('neznama');
+  return fetch(cfg.f).then(function(r){
     if(!r.ok) throw new Error('http');
     return r.json();
   }).then(function(d){KATALOG[zn]=d;return d});
 }
 
-// Naplnění selectu značek — nabízí jen soubory, které reálně existují
+// Dlaždice značek — nabízí jen soubory, které reálně existují
+var zvolenaZn=null;
 Object.keys(SOUBORY).forEach(function(zn){
-  fetch(SOUBORY[zn],{method:'HEAD'}).then(function(r){
-    if(r.ok){var o=document.createElement('option');o.value=zn;o.textContent=zn;$('selZn').appendChild(o)}
+  fetch(SOUBORY[zn].f,{method:'HEAD'}).then(function(r){
+    if(!r.ok) return;
+    var b=document.createElement('button');
+    b.className='zn-tile'; b.setAttribute('data-zn',zn);
+    b.onclick=function(){rucniZnacka(zn,b)};
+    var img=document.createElement('img');
+    img.src=SOUBORY[zn].logo; img.alt=zn; img.loading='lazy';
+    img.onerror=function(){ // logo chybí → jen název
+      var d=document.createElement('div'); d.className='zn-fallback'; d.textContent=zn;
+      img.replaceWith(d);
+    };
+    var nm=document.createElement('div'); nm.className='nm'; nm.textContent=zn;
+    b.appendChild(img); b.appendChild(nm);
+    $('znGrid').appendChild(b);
   }).catch(function(){});
 });
 
@@ -316,8 +343,11 @@ function spojSKatalogem(){
 }
 
 // ── Ruční cesta: značka → model → motorizace ──────────────────
-function rucniZnacka(){
-  var zn=$('selZn').value; reset();
+function rucniZnacka(zn,el){
+  reset();
+  zvolenaZn=zn;
+  document.querySelectorAll('.zn-tile.on').forEach(function(b){b.classList.remove('on')});
+  if(el) el.classList.add('on');
   $('selMo').innerHTML='<option value="">Model…</option>'; $('selMo').disabled=true;
   $('mtList').innerHTML='';
   if(!zn) return;
@@ -370,7 +400,7 @@ function genKlic(x){
   return rim?('R'+RIM.indexOf(rim)):('Y'+rokGenerace(x.slug));
 }
 function rucniModel(){
-  var zn=$('selZn').value, m=$('selMo').value; reset();
+  var zn=zvolenaZn, m=$('selMo').value; reset();
   $('mtList').innerHTML=''; R={vozy:[],gen:null,pal:null,model:m,zn:zn};
   if(!m) return;
   R.vozy=KATALOG[zn].vozy.filter(function(x){return zakladniModel(x.model)===m});
@@ -426,7 +456,7 @@ function krokyRucni(){
   $('mtList').innerHTML=html;
 }
 function rucniMotorIdx(i,el){
-  var zn=$('selZn').value; reset();
+  var zn=zvolenaZn; reset();
   document.querySelectorAll('.mt-row.on').forEach(function(b){b.classList.remove('on')});
   if(el) el.classList.add('on');
   var vuz=KATALOG[zn].vozy[i];
