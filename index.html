@@ -53,6 +53,19 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .chip{padding:7px 14px;border-radius:10px;border:2px solid var(--border);background:var(--white);
   font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer}
 .chip.on{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.mt-gen{font-weight:700;font-size:14px;margin:14px 0 2px}
+.mt-pal{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);
+  font-weight:700;margin:10px 0 6px}
+.mt-list{display:grid;gap:7px}
+.mt-row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;background:var(--white);
+  cursor:pointer;text-align:left;font-family:Inter,sans-serif;width:100%}
+.mt-row:active{border-color:var(--blue);background:var(--blue-light)}
+.mt-row.on{border-color:var(--blue);background:var(--blue-light)}
+.mt-motor{font-weight:700;font-size:14.5px}
+.mt-roky{color:var(--text-muted);font-size:12.5px;font-weight:400}
+.mt-kody{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;
+  color:var(--blue);background:var(--blue-light);border-radius:7px;padding:3px 8px;white-space:nowrap}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-top:14px}
 .f{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--bg)}
 .f.kab{border-color:var(--blue-mid);background:var(--blue-light)}
@@ -105,7 +118,7 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
     <div class="section-sub">Když VIN nesedí nebo vůz není v registru.</div>
     <select id="selZn" onchange="rucniZnacka()"><option value="">Značka…</option></select>
     <select id="selMo" onchange="rucniModel()" disabled><option value="">Model…</option></select>
-    <select id="selMt" onchange="rucniMotor()" disabled><option value="">Motorizace…</option></select>
+    <div id="mtList"></div>
   </div>
 
   <div class="box err" id="errBox"></div>
@@ -306,7 +319,7 @@ function spojSKatalogem(){
 function rucniZnacka(){
   var zn=$('selZn').value; reset();
   $('selMo').innerHTML='<option value="">Model…</option>'; $('selMo').disabled=true;
-  $('selMt').innerHTML='<option value="">Motorizace…</option>'; $('selMt').disabled=true;
+  $('mtList').innerHTML='';
   if(!zn) return;
   nactiKatalog(zn).then(function(d){
     var modely=[]; (d.vozy||[]).forEach(function(x){
@@ -329,7 +342,7 @@ function rokGenerace(slug){
 var RIM=['I','II','III','IV','V','VI','VII','VIII'];
 function rucniModel(){
   var zn=$('selZn').value, m=$('selMo').value; reset();
-  $('selMt').innerHTML='<option value="">Motorizace…</option>'; $('selMt').disabled=true;
+  $('mtList').innerHTML='';
   if(!m) return;
   var vsechny=KATALOG[zn].vozy;
   var vozy=vsechny.filter(function(x){return x.model===m});
@@ -337,25 +350,33 @@ function rucniModel(){
   var roky=[]; vozy.forEach(function(x){var r=rokGenerace(x.slug);
     if(roky.indexOf(r)<0) roky.push(r)});
   roky.sort(function(a,b){return a-b});
+  var html='';
   roky.forEach(function(r,gi){
     var skupina=vozy.filter(function(x){return rokGenerace(x.slug)===r});
-    var cil=$('selMt');
-    if(roky.length>1){
-      cil=document.createElement('optgroup');
-      cil.label=m+' '+(RIM[gi]||(gi+1))+(r?' (od '+r+')':'');
-      $('selMt').appendChild(cil);
-    }
-    skupina.forEach(function(x){
-      var o=document.createElement('option');o.value=String(vsechny.indexOf(x));
-      o.textContent=x.motor+' '+x.vykon_kw+' kW · '+x.kody.join('/')+' · '+x.roky;
-      cil.appendChild(o)});
+    if(roky.length>1) html+='<div class="mt-gen">'+esc(m)+' '+(RIM[gi]||(gi+1))+
+      (r?' <span class="mt-roky">(od '+r+')</span>':'')+'</div>';
+    // Uvnitř generace rozdělit benzin / nafta, seřadit dle objemu a kW
+    var paliva=[]; skupina.forEach(function(x){
+      if(paliva.indexOf(x.palivo)<0) paliva.push(x.palivo)});
+    paliva.forEach(function(pal){
+      var cast=skupina.filter(function(x){return x.palivo===pal});
+      cast.sort(function(a,b){return a.motor===b.motor?
+        parseInt(a.vykon_kw,10)-parseInt(b.vykon_kw,10):a.motor.localeCompare(b.motor,'cs')});
+      if(paliva.length>1) html+='<div class="mt-pal">'+esc(pal)+'</div>';
+      html+='<div class="mt-list">'+cast.map(function(x){
+        return '<button class="mt-row" onclick="rucniMotorIdx('+vsechny.indexOf(x)+',this)">'+
+          '<span><span class="mt-motor">'+esc(x.motor)+' · '+esc(x.vykon_kw)+' kW</span><br>'+
+          '<span class="mt-roky">'+esc(x.roky)+'</span></span>'+
+          '<span class="mt-kody">'+esc(x.kody.join(' '))+'</span></button>'}).join('')+'</div>';
+    });
   });
-  $('selMt').disabled=false;
+  $('mtList').innerHTML=html;
 }
-function rucniMotor(){
-  var zn=$('selZn').value, i=$('selMt').value; reset();
-  if(i==='') return;
-  var vuz=KATALOG[zn].vozy[parseInt(i,10)];
+function rucniMotorIdx(i,el){
+  var zn=$('selZn').value; reset();
+  document.querySelectorAll('.mt-row.on').forEach(function(b){b.classList.remove('on')});
+  if(el) el.classList.add('on');
+  var vuz=KATALOG[zn].vozy[i];
   // Kód motoru: u skupiny s jedním kódem je daný; u více kódů se vybírá chipem.
   // Chip je nutný jen tehdy, když nějaká položka kódy vůbec rozlišuje.
   var rozlisuje=false;
@@ -365,6 +386,7 @@ function rucniMotor(){
      chipy:(vuz.kody.length>1&&rozlisuje)?vuz.kody.slice():null,
      karty:[{rozbal:{},kab:'zakladni'}],vice:false,rucni:true};
   render();
+  $('out').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function zvolKod(k){ if(!V)return; V.kod=k; render(); }
 
