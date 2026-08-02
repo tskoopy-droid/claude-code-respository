@@ -444,8 +444,15 @@ function render(){
       '<div class="section-sub">Skupina má víc kódů a některé díly je rozlišují — vyber ten svůj (je na bloku motoru / v servisní knize).</div>'+
       '<div class="chips">'+V.chipy.map(function(k){
         return '<button class="chip'+(V.kod===k?' on':'')+'" onclick="zvolKod(\''+esc(k)+'\')">'+esc(k)+'</button>'}).join('')+
-      '</div>'+(V.kod?'':'<div class="section-sub" style="color:var(--amber);margin:0">Bez volby kódu se zobrazí jen díly společné pro celou skupinu.</div>')+
+      '</div>'+
       '</div>';
+    // Bez zvoleného kódu se díly vůbec nezobrazují — jinak by vítězil
+    // náhodný univerzální díl a Bosch vázaný na kód by chyběl.
+    if(!V.kod){
+      html+='<div class="card" style="text-align:center;color:var(--text-muted);font-size:13.5px">'+
+        'Vyberte kód motoru výše — teprve pak se zobrazí odpovídající filtry.</div>';
+      $('out').innerHTML=html; return;
+    }
   }
 
   V.vozy.forEach(function(x,ci){ html+=karta(x,ci); });
