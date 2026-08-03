@@ -106,7 +106,7 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .olej-meta{color:var(--text-muted);font-size:12.5px}
 .olej-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
 .olej-list{display:grid;gap:6px;margin-top:8px}
-.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-top:14px}
+.filters{display:grid;grid-template-columns:1fr;gap:11px;margin-top:14px}
 .f{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--bg)}
 .f.kab{border-color:var(--blue-mid);background:var(--blue-light)}
 .f-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -828,27 +828,45 @@ function karta(x,ci){
     }
     if(!w) w=vitez(vsechny);
 
-    // Kabinové varianty: základní / uhlíkový / premium přes cross-ref na díl
+    // Kabinové: kvalita se vybírá na dlaždici v rámci JEDNÉ značky.
+    // Varianty = všechny díly té značky, pojmenované podle cross-ref
+    // (uhlik/premium), jinak podle pořadí ceny.
     var varianty=null, aktivni=w;
     if(c==='kabinovy'){
-      varianty=[{id:'zakladni',n:'Základní',f:w}];
-      ['uhlik','premium'].forEach(function(v){
-        var ref=w[v];
-        if(ref){
-          var nal=vsechny.filter(function(f){return f.dil===ref})[0];
-          if(nal) varianty.push({id:v,n:(v==='uhlik'?'Uhlíkový':'Premium'),f:nal});
-        }
+      var teZnacky=vsechny.filter(function(f){return f.znacka===w.znacka})
+        .sort(function(a,b){return cena(a)-cena(b)});
+      // základ = díl s cross-ref, jinak nejlevnější
+      var zaklad=teZnacky.filter(function(f){return f.uhlik||f.premium})[0]||teZnacky[0];
+      varianty=teZnacky.map(function(f){
+        var n='Základní';
+        if(f.dil===zaklad.uhlik) n='Uhlíkový';
+        else if(f.dil===zaklad.premium) n='Premium';
+        else if(f!==zaklad) n='Varianta';
+        return {id:f.dil,n:n,f:f};
       });
       if(varianty.length>1){
-        var zvol=varianty.filter(function(v){return v.id===ks.kab})[0]||varianty[0];
+        var zvol=varianty.filter(function(v){return v.id===ks.kab})[0]||
+                 varianty.filter(function(v){return v.f===zaklad})[0]||varianty[0];
         aktivni=zvol.f;
       } else varianty=null;
     }
 
     sum+=cena(aktivni);
-    var ostatni=vsechny.filter(function(f){return f!==aktivni &&
-      !(varianty&&varianty.some(function(v){return v.f===f}))});
-    ostatni.sort(function(a,b){return cena(a)-cena(b)});
+    var ostatni;
+    if(c==='kabinovy'){
+      // Další varianty = po JEDNÉ položce za značku, bez ceny.
+      // Kvalitu si pak zvolíš přepínačem na dlaždici.
+      var videne={}; ostatni=[];
+      vsechny.forEach(function(f){
+        if(f.znacka===aktivni.znacka||videne[f.znacka]) return;
+        videne[f.znacka]=1; ostatni.push(f);
+      });
+      ostatni.sort(function(a,b){
+        return PRIORITA.indexOf(a.znacka)-PRIORITA.indexOf(b.znacka)});
+    } else {
+      ostatni=vsechny.filter(function(f){return f!==aktivni});
+      ostatni.sort(function(a,b){return cena(a)-cena(b)});
+    }
     var rozbal=!!ks.rozbal[c];
 
     // U kabinových se v seznamu variant ukazuje jen značka — číslo dílu
@@ -870,9 +888,9 @@ function karta(x,ci){
         (rozbal?'<div class="more-list">'+ostatni.map(function(f){
           return '<div class="alt-row">'+
             '<span class="alt-zn">'+znackaHtml(f.znacka)+'</span>'+
-            (jenZnacka?'':'<span class="p">'+esc(f.dil)+'</span>')+
+            (jenZnacka?'<span class="p"></span>':'<span class="p">'+esc(f.dil)+'</span>')+
             (f.kody&&f.kody.length?'<span class="badge b" style="margin:0">'+esc(f.kody.join(','))+'</span>':'')+
-            '<b class="alt-cena">'+cena(f)+' Kč</b>'+
+            (jenZnacka?'':'<b class="alt-cena">'+cena(f)+' Kč</b>')+
             '<button class="alt-btn" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">Vybrat</button>'+
             '<a class="alt-link" target="_blank" rel="noopener" title="Otevřít na Pegasu" '+
               'href="'+odkaz(x.slug,CAT[c][1],f.znacka)+'">↗</a>'+
@@ -896,7 +914,7 @@ function rozbalDalsi(ci,c){ V.karty[ci].rozbal[c]=!V.karty[ci].rozbal[c]; render
 // Ruční volba dílu z "dalších variant"; null = zpět na automatiku
 function zvolDil(ci,c,dil){
   V.karty[ci].volba[c]=dil;
-  if(c==='kabinovy') V.karty[ci].kab='zakladni';
+  if(c==='kabinovy') V.karty[ci].kab=null;   // kvalita se dovybere na dlaždici
   V.karty[ci].rozbal[c]=false;   // po výběru seznam sbalit
   render();
 }
