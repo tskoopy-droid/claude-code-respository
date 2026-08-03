@@ -42,6 +42,8 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .box.warn{background:var(--amber-light);border:1px solid var(--amber-border);color:var(--amber)}
 .auto-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:12px}
 .auto-name{font-weight:700;font-size:17px}
+.auto-logo{height:26px;max-width:70px;width:auto;object-fit:contain;object-position:left center;
+  display:block;margin-right:2px}
 .auto-meta{color:var(--text-muted);font-size:13px}
 .tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:7px;background:var(--blue-light);color:var(--blue)}
 .tag.q{background:var(--amber-light);color:var(--amber)}
@@ -128,10 +130,18 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .more-btn{background:none;border:none;color:var(--blue);font:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;padding:0;text-decoration:underline}
 .more-list{margin-top:8px;display:grid;gap:6px}
-.alt-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;
-  padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--white)}
-.alt-row .p{font-family:ui-monospace,Menlo,monospace;color:var(--text-muted);word-break:break-all}
-.alt-row b{white-space:nowrap}
+.alt-row{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--white)}
+.alt-zn{flex:0 0 auto;display:flex;align-items:center;min-width:64px}
+.alt-zn .f-logo{height:16px;max-width:64px}
+.alt-row .p{font-family:ui-monospace,Menlo,monospace;color:var(--text-muted);
+  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
+.alt-cena{margin-left:auto;white-space:nowrap;font-weight:700;font-size:13px}
+.alt-btn{flex:0 0 auto;padding:4px 10px;border-radius:7px;border:1.5px solid var(--blue-mid);
+  background:var(--blue-light);color:var(--blue);font-family:Inter,sans-serif;
+  font-size:11.5px;font-weight:700;cursor:pointer}
+.alt-btn:active{background:var(--blue-mid)}
+.alt-link{flex:0 0 auto;color:var(--blue);text-decoration:none;font-weight:700;font-size:14px;padding:0 2px}
 .total{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:baseline}
 .total b{font-size:20px;font-weight:700}
 .foot{margin-top:20px;font-size:12px;color:var(--text-muted);line-height:1.7}
@@ -171,7 +181,7 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
     <input type="file" id="inputGalerie" accept="image/*" style="display:none" onchange="zpracujFotku(this)">
   </div>
 
-  <div class="card">
+  <div class="card" id="cardRucni">
     <div class="section-title">…nebo vyberte ručně</div>
     <div class="section-sub">Když VIN nesedí nebo vůz není v registru.</div>
     <div class="zn-grid" id="znGrid"></div>
@@ -199,7 +209,9 @@ var SOUBORY={'Škoda':{f:'skoda.json',logo:'logoskoda.png'},
              'Seat':{f:'seat.json',logo:'logoseat.png'},
              'Audi':{f:'audi.json',logo:'logoaudi.png'}};
 var KATALOG={};              // načtená data: značka -> {vozy:[...]}
-var B64='QnJhbmRQcm9kdWN0RmllbGRzRmlsdGVyJTVCMCU1RD0yMDI1';
+// ID značek v Pegasu — parametr filter je base64 z
+// "BrandProductFieldsFilter%5B0%5D=ID". Ověřeno na reálných URL.
+var ZN_ID={'BOSCH':2025,'MAHLE':3081,'FEBI BILSTEIN':3063};
 var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
 var CAT={olejovy:['Olejový','olejovy-filtr'],vzduchovy:['Vzduchový','vzduchovy-filtr'],
          kabinovy:['Kabinový','kabinovy-vzduchovy-filtr'],palivovy:['Palivový','palivovy-filtr']};
@@ -221,7 +233,13 @@ function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function cena(f){return Math.min.apply(null,f.ceny)}   // nižší = klasické dodání
-function odkaz(slug,typ){return BASE+typ+'?filter='+B64+'&v='+encodeURIComponent(slug)}
+// Odkaz na výpis kategorie u vozu, filtrovaný na danou značku.
+// Bez značky (nebo neznámá) → Bosch jako výchozí.
+function odkaz(slug,typ,znacka){
+  var id=ZN_ID[znacka]||ZN_ID['BOSCH'];
+  var f=btoa('BrandProductFieldsFilter%5B0%5D='+id);
+  return BASE+typ+'?filter='+f+'&v='+encodeURIComponent(slug);
+}
 function chyba(t){$('errBox').textContent=t;$('errBox').classList.add('visible')}
 function varovani(h){$('warnBox').innerHTML+=(($('warnBox').innerHTML?'<br>':'')+h);
   $('warnBox').classList.add('visible')}
@@ -535,6 +553,7 @@ function spojSKatalogem(){
     // Stav výsledku: kód je daný z VIN, chipy netřeba
     V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
        vice:vyber.length>1};
+    predvyberRucni(zn,vyber[0],r.kod);   // ukázat v ručním výběru, kam se to trefilo
     render();
   }).catch(function(){
     hlavickaRegistr(null,kw,null);
@@ -673,10 +692,44 @@ function rucniMotorIdx(i,el){
 }
 function zvolKod(k){ if(!V)return; V.kod=k; render(); }
 
+// ── Předvýběr v ručním panelu podle výsledku VIN ──────────────
+// Ruční výběr zůstává viditelný a ukazuje, kam se párování trefilo:
+// značka → model → generace → palivo → motorizace. Nepřepisuje
+// výsledek (ten už je vykreslený), jen nastaví panel.
+function predvyberRucni(zn,vuz,kod){
+  if(!vuz) return;
+  // dlaždice značky
+  zvolenaZn=zn;
+  document.querySelectorAll('.zn-tile').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-zn')===zn)});
+  // select modelu
+  var zaklad=zakladniModel(vuz.model);
+  var sel=$('selMo');
+  sel.innerHTML='<option value="">Model…</option>';
+  var modely=[]; KATALOG[zn].vozy.forEach(function(x){
+    var m=zakladniModel(x.model); if(modely.indexOf(m)<0) modely.push(m)});
+  modely.sort(function(a,b){return a.localeCompare(b,'cs')}).forEach(function(m){
+    var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
+  sel.disabled=false; sel.value=zaklad;
+  // kroky generace / palivo / motorizace
+  R={vozy:KATALOG[zn].vozy.filter(function(x){return zakladniModel(x.model)===zaklad}),
+     gen:genKlic(vuz),pal:vuz.palivo,model:zaklad,zn:zn};
+  var klice=[]; R.vozy.forEach(function(x){var k=genKlic(x);
+    if(klice.indexOf(k)<0) klice.push(k)});
+  klice.sort(function(a,b){return parseInt(a.slice(1),10)-parseInt(b.slice(1),10)});
+  R.gener=klice;
+  krokyRucni();
+  // zvýraznit řádek motorizace
+  var idx=KATALOG[zn].vozy.indexOf(vuz);
+  document.querySelectorAll('.mt-row').forEach(function(b){
+    if(b.getAttribute('onclick').indexOf('('+idx+',')>=0) b.classList.add('on')});
+}
+
 // ── Hlavička s údaji z registru (jen VIN cesta) ───────────────
 function hlavickaRegistr(kod,kw,zdroj){
   $('out').innerHTML=
     '<div class="card"><div class="auto-head">'+
+      logoZnackyHtml(stav.znacka)+
       '<span class="auto-name">'+esc(stav.znacka)+' '+esc(stav.model)+'</span>'+
       '<span class="tag'+(kod?(zdroj==='kodMotoru'?' q':''):' q')+'">'+
         esc(kod||'kód nenalezen')+'</span>'+
@@ -689,6 +742,13 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
     '</div></div>';
+}
+// Logo značky vozu do hlavičky — podle normalizovaného názvu z SOUBORY
+function logoZnackyHtml(znacka){
+  var zn=normZnacka(znacka);
+  if(!zn||!SOUBORY[zn]||!SOUBORY[zn].logo) return '';
+  return '<img class="auto-logo" src="'+SOUBORY[zn].logo+'" alt="'+esc(zn)+'" '+
+    'onerror="this.style.display=\'none\'">';
 }
 function radek(k,v){return v?'<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>':''}
 
@@ -759,7 +819,7 @@ function karta(x,ci){
       return '<div class="f none"><div class="f-top">'+
         '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">—</span></div>'+
         '<div class="f-part">nepřiřazeno</div>'+
-        '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1])+'">Otevřít na Pegasu ↗</a></div>';
+        '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1],'BOSCH')+'">Otevřít na Pegasu ↗</a></div>';
     }
     // Vítěz podle priority, nebo díl ručně zvolený z "dalších variant"
     var w=null;
@@ -791,6 +851,10 @@ function karta(x,ci){
     ostatni.sort(function(a,b){return cena(a)-cena(b)});
     var rozbal=!!ks.rozbal[c];
 
+    // U kabinových se v seznamu variant ukazuje jen značka — číslo dílu
+    // je nezajímavé, kvalitu (základní/uhlík/premium) řeší přepínač na dlaždici.
+    var jenZnacka=(c==='kabinovy');
+
     return '<div class="f'+kab+'"><div class="f-top">'+
       '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">'+cena(aktivni)+' Kč</span></div>'+
       '<div class="f-brand">'+znackaHtml(aktivni.znacka)+
@@ -799,18 +863,21 @@ function karta(x,ci){
       (varianty?'<div class="vars">'+varianty.map(function(v){
         return '<button class="var-btn'+(v.f===aktivni?' on':'')+
           '" onclick="prepniKab('+ci+',\''+v.id+'\')">'+v.n+' · '+cena(v.f)+' Kč</button>'}).join('')+'</div>':'')+
-      '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1])+'">Otevřít na Pegasu ↗</a>'+
+      '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1],aktivni.znacka)+'">Otevřít na Pegasu ↗</a>'+
       (aktivni.kody&&aktivni.kody.length?'<br><span class="badge b">jen '+esc(aktivni.kody.join(', '))+'</span>':'')+
       (ostatni.length?'<div class="more"><button class="more-btn" onclick="rozbalDalsi('+ci+',\''+c+'\')">'+
         (rozbal?'Skrýt další varianty':'Další varianty ('+ostatni.length+')')+'</button>'+
         (rozbal?'<div class="more-list">'+ostatni.map(function(f){
-          return '<div class="alt-row"><span><span class="f-brand" style="margin:0;display:inline-flex">'+
-            znackaHtml(f.znacka)+'</span> <span class="p">'+esc(f.dil)+'</span>'+
-            (f.kody&&f.kody.length?' <span class="badge b" style="margin:0">jen '+esc(f.kody.join(', '))+'</span>':'')+
-            '<br><button class="more-btn" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">Vybrat</button>'+
-            ' · <a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1])+'">Pegas ↗</a>'+
-            '</span><b>'+cena(f)+' Kč</b></div>'}).join('')+
-          (ks.volba[c]?'<button class="more-btn" style="margin-top:4px" onclick="zvolDil('+ci+',\''+c+'\',null)">← Zpět na automatický výběr</button>':'')+
+          return '<div class="alt-row">'+
+            '<span class="alt-zn">'+znackaHtml(f.znacka)+'</span>'+
+            (jenZnacka?'':'<span class="p">'+esc(f.dil)+'</span>')+
+            (f.kody&&f.kody.length?'<span class="badge b" style="margin:0">'+esc(f.kody.join(','))+'</span>':'')+
+            '<b class="alt-cena">'+cena(f)+' Kč</b>'+
+            '<button class="alt-btn" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">Vybrat</button>'+
+            '<a class="alt-link" target="_blank" rel="noopener" title="Otevřít na Pegasu" '+
+              'href="'+odkaz(x.slug,CAT[c][1],f.znacka)+'">↗</a>'+
+            '</div>'}).join('')+
+          (ks.volba[c]?'<button class="more-btn" style="margin-top:6px" onclick="zvolDil('+ci+',\''+c+'\',null)">← Zpět na automatický výběr</button>':'')+
           '</div>':'')+
         '</div>':'')+
       '</div>';
