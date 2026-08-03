@@ -100,6 +100,8 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 @keyframes vinSpin{to{transform:rotate(360deg)}}
 .olej-box{border:1px solid var(--green-border);background:var(--green-light);border-radius:12px;
   padding:12px 14px;margin-top:14px}
+.olej-logo{height:22px;max-width:120px;width:auto;object-fit:contain;object-position:left center;
+  display:block;margin-bottom:8px}
 .olej-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
 .olej-name{font-weight:700;font-size:14.5px}
 .olej-price{font-size:17px;font-weight:700;white-space:nowrap}
@@ -435,8 +437,11 @@ function olejHtml(){
       '<button class="var-btn'+(OLEJ.kat==='standard'?' on':'')+'" onclick="zvolKat(\'standard\')">Standard</button>'+
       '<button class="var-btn'+(OLEJ.kat==='ll'?' on':'')+'" onclick="zvolKat(\'ll\')">Long Life</button></div>';
   }
-  return '<div class="card"><div class="section-title">Doporučený olej</div>'+
-    '<div class="section-sub">Podle specifikace výrobce (Castrol)'+(objem?' · náplň '+esc(objem)+' l':'')+'</div>'+
+  return '<div class="card">'+
+    '<img class="olej-logo" src="logocastrol.png" alt="Castrol" '+
+      'onerror="this.style.display=\'none\'">'+
+    '<div class="section-title">Doporučený olej</div>'+
+    '<div class="section-sub">Podle specifikace výrobce'+(objem?' · náplň '+esc(objem)+' l':'')+'</div>'+
     taby+
     '<div class="olej-box"><div class="olej-head">'+
       '<span class="olej-name">'+esc(akt.nazev)+'</span>'+
