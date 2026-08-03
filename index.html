@@ -100,7 +100,7 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 @keyframes vinSpin{to{transform:rotate(360deg)}}
 .olej-box{border:1px solid var(--green-border);background:var(--green-light);border-radius:12px;
   padding:12px 14px;margin-top:14px}
-.olej-logo{height:22px;max-width:120px;width:auto;object-fit:contain;object-position:left center;
+.olej-logo{height:44px;max-width:220px;width:auto;object-fit:contain;object-position:left center;
   display:block;margin-bottom:8px}
 .olej-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
 .olej-name{font-weight:700;font-size:14.5px}
@@ -399,7 +399,7 @@ function zpracujFotku(input){
 // nad = Long Life. V rámci kategorie vyhrává nejnižší priorita.
 var OLEJ=null;
 function nactiOlej(vin){
-  OLEJ=null;
+  OLEJ={nacita:true};   // ukázat placeholder, Castrol API bývá pomalé
   fetch(window.GAS_URL+'?vin='+vin+'&action=olej',{redirect:'follow'})
     .then(function(r){return r.json()})
     .then(function(d){
@@ -429,6 +429,13 @@ function rozbalOleje(){ OLEJ.rozbal=!OLEJ.rozbal; render() }
 
 function olejHtml(){
   if(!OLEJ) return '';
+  if(OLEJ.nacita){
+    return '<div class="card"><div class="section-title">Doporučený olej</div>'+
+      '<div class="section-sub" style="margin:0">'+
+      '<span class="spin" style="border-color:var(--blue-mid);border-top-color:var(--blue);'+
+      'width:14px;height:14px;border-width:2px;vertical-align:-2px"></span> '+
+      'Načítám z Castrolu…</div></div>';
+  }
   if(OLEJ.chyba){
     return '<div class="card"><div class="section-title">Doporučený olej</div>'+
       '<div class="section-sub" style="margin:0;color:var(--amber)">'+esc(OLEJ.chyba)+'</div></div>';
