@@ -222,11 +222,12 @@ function normZnacka(z){
 }
 
 // ── Kód motoru — PŘEVZATO ze staré verze beze změny principu ──
-// Kód se z Varianty NEEXTRAHUJE (formát se liší podle značky:
-//   Škoda ABBZGX01 / ABCHYBX01, Seat BCBX0SG).
+// Kód se z Varianty NEEXTRAHUJE regulárem (formát se liší podle
+//   značky: Škoda ABBZGX01 / ABCHYBX01, Seat BCBX0SG).
 // Místo toho se projdou kódy z katalogu a hledá se, který z nich
 // je ve Variantě obsažen. Vyhrává NEJDELŠÍ shoda — krátké kódy
 // (např. 1Z) by se jinak trefily skoro do čehokoli.
+// U VAG nese kód motoru pole Varianta — jinam se nesahá.
 function najdiKod(vozy,varianta,kodMotoru){
   var v=(varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   var k=(kodMotoru||'').toUpperCase().trim();
@@ -236,9 +237,13 @@ function najdiKod(vozy,varianta,kodMotoru){
       if(c.length>=2 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c; })});
     if(nej) return {kod:nej,zdroj:'varianta'};
   }
-  // Fallback: zkrácený kód z registru (CHY místo CHYB) — obousměrný prefix
+  // Fallback: kód z registru. Když sedí přesně, je to spolehlivé a nehlásí se;
+  // zkrácený (CHY → CHYB) se dopáruje prefixem a uživatel se upozorní.
   if(k){
-    var m=null;
+    var m=null, presne=false;
+    vozy.forEach(function(x){ x.kody.forEach(function(c){
+      if(c===k){m=c;presne=true} })});
+    if(presne) return {kod:m,zdroj:'presne'};
     vozy.forEach(function(x){ x.kody.forEach(function(c){
       if((c.indexOf(k)===0||k.indexOf(c)===0) && (!m||c.length>m.length)) m=c; })});
     if(m) return {kod:m,zdroj:'kodMotoru'};
@@ -246,6 +251,23 @@ function najdiKod(vozy,varianta,kodMotoru){
   return {kod:null,zdroj:null};
 }
 function maKod(x,kod){ return x.kody.indexOf(kod)>=0 }
+
+// ── Modelový rok z 10. znaku VIN (ISO 3779 / 49 CFR 565.15) ───
+// Cyklus: A–Y bez I,O,Q,U,Z, pak 1–9. Opakuje se po 30 letech,
+// takže kód sedí na dva roky (2 = 1982 i 2012).
+// Rozlišení: 7. znak — číslice = cyklus 1980–2009, písmeno = 2010–2039.
+// Pojistka: rok v budoucnosti se posune o 30 let zpět.
+var VIN_ROKY='ABCDEFGHJKLMNPRSTVWXY123456789';
+function rokZVin(vin){
+  if(!vin||vin.length!==17) return null;
+  var i=VIN_ROKY.indexOf(vin.charAt(9));
+  if(i<0) return null;
+  var novy=/[A-Z]/.test(vin.charAt(6));   // 7. znak písmeno → novější cyklus
+  var rok=(novy?2010:1980)+i;
+  var ted=new Date().getFullYear();
+  if(rok>ted+1) rok-=30;                   // dovoz/starý vůz — posun zpět
+  return rok;
+}
 
 // ── VIN cesta ─────────────────────────────────────────────────
 function nactiVin(){
@@ -336,8 +358,9 @@ function spojSKatalogem(){
         esc(r.kod)+'. Zobrazeny všechny výkonové verze — ověř podle objemu.');
     }
     if(r.zdroj==='kodMotoru'){
-      varovani('Kód se nenašel ve Variantě, použit zkrácený <b>'+esc(stav.kodMotoru)+
-        '</b> z registru. Zkontroluj, že vybraná motorizace sedí.');
+      varovani('Kód z registru <b>'+esc(stav.kodMotoru)+'</b> se dopároval na <b>'+
+        esc(r.kod)+'</b> podle začátku (registr kódy někdy zkracuje). '+
+        'Zkontroluj, že vybraná motorizace sedí.');
     }
 
     var zaklad=(kwSedi&&uzke.length)?uzke:kandidati;
@@ -494,7 +517,9 @@ function hlavickaRegistr(kod,kw,zdroj){
         esc(kod||'kód nenalezen')+'</span>'+
     '</div><div class="rows">'+
       radek('Kód motoru z registru',stav.kodMotoru)+
+      radek('Typ',stav.typ)+
       radek('Varianta',stav.varianta)+
+      radek('Modelový rok (z VIN)',rokZVin(stav.vin))+
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
