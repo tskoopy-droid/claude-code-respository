@@ -420,8 +420,7 @@ function olejHtml(){
     '<div class="olej-box"><div class="olej-head">'+
       '<span class="olej-name">'+esc(akt.nazev)+'</span>'+
       '<span class="olej-price">'+(akt.cenaOleje||'—')+' Kč</span></div>'+
-      '<div class="olej-meta">'+esc(akt.interval||'')+
-      (akt.cena1lDoliti?' · dolití 1 l '+akt.cena1lDoliti+' Kč':'')+'</div>'+
+      '<div class="olej-meta">'+esc(akt.interval||'')+'</div>'+
     '</div>'+
     (ostatni.length?'<div class="more"><button class="more-btn" onclick="rozbalOleje()">'+
       (OLEJ.rozbal?'Skrýt další oleje':'Další oleje ('+ostatni.length+')')+'</button>'+
