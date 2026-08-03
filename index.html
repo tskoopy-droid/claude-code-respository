@@ -640,6 +640,7 @@ function rozbalDalsi(ci,c){ V.karty[ci].rozbal[c]=!V.karty[ci].rozbal[c]; render
 function zvolDil(ci,c,dil){
   V.karty[ci].volba[c]=dil;
   if(c==='kabinovy') V.karty[ci].kab='zakladni';
+  V.karty[ci].rozbal[c]=false;   // po výběru seznam sbalit
   render();
 }
 
