@@ -498,7 +498,6 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
-      radek('Typ (nespolehlivý)',stav.typ)+
     '</div></div>';
 }
 function radek(k,v){return v?'<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>':''}
