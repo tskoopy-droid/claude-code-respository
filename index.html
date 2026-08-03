@@ -75,6 +75,35 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .mt-roky{color:var(--text-muted);font-size:12.5px;font-weight:400}
 .mt-kody{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;
   color:var(--blue);background:var(--blue-light);border-radius:7px;padding:3px 8px;white-space:nowrap}
+.vin-cam-btn{width:100%;margin-bottom:12px;padding:14px 18px;background:var(--blue-light);
+  border:2px solid var(--blue-mid);border-radius:14px;color:var(--blue);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:Inter,sans-serif;font-weight:700;font-size:15px}
+.vin-cam-btn:active{background:var(--blue-mid)}
+.vin-cam-btn svg{width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;
+  align-items:flex-end;justify-content:center}
+.cam-modal-overlay.open{display:flex}
+.cam-modal{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px}
+.cam-modal-title{font-size:16px;font-weight:700;margin-bottom:16px;text-align:center}
+.cam-option{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;
+  border:2px solid var(--border);margin-bottom:10px;cursor:pointer;font-family:Inter,sans-serif;
+  font-size:15px;font-weight:600;color:var(--text);background:#fff;width:100%}
+.cam-option:active{background:#f1f5f9}
+.cam-option svg{width:24px;height:24px;stroke:var(--blue);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cam-cancel{width:100%;padding:14px;border:none;background:none;font-family:Inter,sans-serif;
+  font-size:15px;font-weight:600;color:var(--text-muted);cursor:pointer}
+@keyframes vinSpin{to{transform:rotate(360deg)}}
+.olej-box{border:1px solid var(--green-border);background:var(--green-light);border-radius:12px;
+  padding:12px 14px;margin-top:14px}
+.olej-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
+.olej-name{font-weight:700;font-size:14.5px}
+.olej-price{font-size:17px;font-weight:700;white-space:nowrap}
+.olej-meta{color:var(--text-muted);font-size:12.5px}
+.olej-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+.olej-list{display:grid;gap:6px;margin-top:8px}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-top:14px}
 .f{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--bg)}
 .f.kab{border-color:var(--blue-mid);background:var(--blue-light)}
@@ -119,9 +148,27 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
   <div class="card">
     <div class="section-title">Zadejte VIN vozidla</div>
     <div class="section-sub">Načte se z registru vozidel — značka, model, kód motoru a výkon.</div>
+    <button class="vin-cam-btn" id="camBtn" onclick="otevriVyberFotky()">
+      <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Skenovat VIN
+    </button>
     <input type="text" class="vin-input" id="vinInput" maxlength="17"
       placeholder="např. TMBBH25J383087742" autocomplete="off" autocorrect="off" spellcheck="false">
     <button class="btn" id="vinBtn" onclick="nactiVin()">Načíst filtry</button>
+
+    <div class="cam-modal-overlay" id="camModal" onclick="zavriModal(event)">
+      <div class="cam-modal">
+        <div class="cam-modal-title">Naskenovat VIN</div>
+        <button class="cam-option" onclick="spustiFotoaparat()">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Fotoaparát
+        </button>
+        <button class="cam-option" onclick="vyberZGalerie()">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Galerie
+        </button>
+        <button class="cam-cancel" onclick="zavriCamModal()">Zrušit</button>
+      </div>
+    </div>
+    <input type="file" id="inputFotoaparat" accept="image/*" capture="environment" style="display:none" onchange="zpracujFotku(this)">
+    <input type="file" id="inputGalerie" accept="image/*" style="display:none" onchange="zpracujFotku(this)">
   </div>
 
   <div class="card">
@@ -179,7 +226,7 @@ function chyba(t){$('errBox').textContent=t;$('errBox').classList.add('visible')
 function varovani(h){$('warnBox').innerHTML+=(($('warnBox').innerHTML?'<br>':'')+h);
   $('warnBox').classList.add('visible')}
 function reset(){['errBox','warnBox'].forEach(function(i){$(i).classList.remove('visible');$(i).innerHTML=''});
-  $('out').innerHTML='';V=null}
+  $('out').innerHTML='';V=null;OLEJ=null}
 
 // ── Načtení katalogu značky (lazy, cache) ─────────────────────
 function nactiKatalog(zn){
@@ -269,6 +316,124 @@ function rokZVin(vin){
   return rok;
 }
 
+var VISION_KEY='AIzaSyDngFtfxDub3SR5zOrMYYbWw-z7B8lEsCw';
+var SVG_CAM='<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+var SVG_SPIN='<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2.5;stroke-linecap:round;animation:vinSpin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>';
+
+// ── Kamera / Vision API — převzato z oleje.html ───────────────
+function otevriVyberFotky(){
+  if(!navigator.maxTouchPoints||navigator.maxTouchPoints===0){ $('inputGalerie').click(); }
+  else { $('camModal').classList.add('open'); }
+}
+function zavriCamModal(){ $('camModal').classList.remove('open') }
+function zavriModal(e){ if(e.target===$('camModal')) zavriCamModal() }
+function spustiFotoaparat(){ zavriCamModal(); $('inputFotoaparat').click() }
+function vyberZGalerie(){ zavriCamModal(); $('inputGalerie').click() }
+
+function zpracujFotku(input){
+  if(!input.files||!input.files[0]) return;
+  var btn=$('camBtn');
+  btn.innerHTML=SVG_SPIN+' Rozpoznávám…'; btn.disabled=true;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var base64=e.target.result.split(',')[1];
+    fetch('https://vision.googleapis.com/v1/images:annotate?key='+VISION_KEY,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({requests:[{image:{content:base64},features:[{type:'TEXT_DETECTION',maxResults:1}]}]})
+    })
+    .then(function(r){return r.json()})
+    .then(function(data){
+      btn.innerHTML=SVG_CAM+' Skenovat VIN'; btn.disabled=false;
+      var text=''; try{ text=data.responses[0].fullTextAnnotation.text||'' }catch(e){}
+      var vinMatch=text.match(/VIN\)[^\w]*([A-HJ-NPR-Z0-9]{17})/i);
+      if(!vinMatch) vinMatch=text.match(/\bE[.:]\s*([A-HJ-NPR-Z0-9]{17})/i);
+      if(!vinMatch){
+        var cleaned=text.replace(/\s/g,'').replace(/[IOQ]/g,'');
+        var kandidati=cleaned.match(/[A-HJ-NPR-Z0-9]{17}/g)||[];
+        var platne=kandidati.filter(function(k){return (k.match(/[0-9]/g)||[]).length>=4});
+        if(platne.length>0){
+          platne.sort(function(a,b){return (b.match(/[0-9]/g)||[]).length-(a.match(/[0-9]/g)||[]).length});
+          vinMatch=[platne[0],platne[0]];
+        }
+      }
+      var vin=vinMatch?(vinMatch[1]||vinMatch[0]):null;
+      if(vin){ $('vinInput').value=vin; reset(); nactiVin(); }
+      else { chyba('VIN nebyl na fotografii nalezen. Zkuste znovu s ostřejším záběrem.') }
+      input.value='';
+    })
+    .catch(function(){
+      btn.innerHTML=SVG_CAM+' Skenovat VIN'; btn.disabled=false;
+      chyba('Chyba při rozpoznávání textu. Zkuste to znovu.');
+      input.value='';
+    });
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Olej z Castrol API přes GAS (?action=olej) ────────────────
+// Vrací {oleje:[{nazev,cenaOleje,km,interval,priorita,cena1lDoliti}],
+//        objem, kodMotoru, cenaFiltr…}. Kategorie: km<=20000 = Standard,
+// nad = Long Life. V rámci kategorie vyhrává nejnižší priorita.
+var OLEJ=null;
+function nactiOlej(vin){
+  OLEJ=null;
+  fetch(window.GAS_URL+'?vin='+vin+'&action=olej',{redirect:'follow'})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(!d||d.error||!d.oleje||!d.oleje.length) return;
+      OLEJ={data:d,kat:null,rozbal:false};
+      var std=d.oleje.filter(function(o){return (o.km||0)<=20000});
+      OLEJ.kat=std.length?'standard':'ll';
+      if(V) render();
+    })
+    .catch(function(){});
+}
+function olejeKategorie(kat){
+  if(!OLEJ) return [];
+  return OLEJ.data.oleje.filter(function(o){
+    return kat==='standard'?(o.km||0)<=20000:(o.km||0)>20000})
+    .sort(function(a,b){return (a.priorita||999)-(b.priorita||999)});
+}
+function zvolKat(k){ OLEJ.kat=k; OLEJ.volba=null; render() }
+function zvolOlej(n){ OLEJ.volba=n; OLEJ.rozbal=false; render() }
+function rozbalOleje(){ OLEJ.rozbal=!OLEJ.rozbal; render() }
+
+function olejHtml(){
+  if(!OLEJ) return '';
+  var d=OLEJ.data;
+  var seznam=olejeKategorie(OLEJ.kat);
+  if(!seznam.length) return '';
+  var akt=OLEJ.volba?(seznam.filter(function(o){return o.nazev===OLEJ.volba})[0]||seznam[0]):seznam[0];
+  var ostatni=seznam.filter(function(o){return o!==akt});
+  var maStd=olejeKategorie('standard').length, maLL=olejeKategorie('ll').length;
+  var objem=d.objem||'';
+
+  var taby='';
+  if(maStd&&maLL){
+    taby='<div class="olej-tabs">'+
+      '<button class="var-btn'+(OLEJ.kat==='standard'?' on':'')+'" onclick="zvolKat(\'standard\')">Standard</button>'+
+      '<button class="var-btn'+(OLEJ.kat==='ll'?' on':'')+'" onclick="zvolKat(\'ll\')">Long Life</button></div>';
+  }
+  return '<div class="card"><div class="section-title">Doporučený olej</div>'+
+    '<div class="section-sub">Podle specifikace výrobce (Castrol)'+(objem?' · náplň '+esc(objem)+' l':'')+'</div>'+
+    taby+
+    '<div class="olej-box"><div class="olej-head">'+
+      '<span class="olej-name">'+esc(akt.nazev)+'</span>'+
+      '<span class="olej-price">'+(akt.cenaOleje||'—')+' Kč</span></div>'+
+      '<div class="olej-meta">'+esc(akt.interval||'')+
+      (akt.cena1lDoliti?' · dolití 1 l '+akt.cena1lDoliti+' Kč':'')+'</div>'+
+    '</div>'+
+    (ostatni.length?'<div class="more"><button class="more-btn" onclick="rozbalOleje()">'+
+      (OLEJ.rozbal?'Skrýt další oleje':'Další oleje ('+ostatni.length+')')+'</button>'+
+      (OLEJ.rozbal?'<div class="olej-list">'+ostatni.map(function(o){
+        return '<div class="alt-row"><span><b>'+esc(o.nazev)+'</b><br>'+
+          '<span class="olej-meta">'+esc(o.interval||'')+'</span><br>'+
+          '<button class="more-btn" onclick="zvolOlej(\''+esc(o.nazev).replace(/'/g,"")+'\')">Vybrat</button>'+
+          '</span><b>'+(o.cenaOleje||'—')+' Kč</b></div>'}).join('')+'</div>':'')+
+      '</div>':'')+
+    '</div>';
+}
+
 // ── VIN cesta ─────────────────────────────────────────────────
 function nactiVin(){
   var vin=$('vinInput').value.trim().toUpperCase();
@@ -286,6 +451,7 @@ function nactiVin(){
       stav={vin:vin,znacka:data.znacka,model:data.model,typ:data.typ,varianta:data.varianta,
             kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
             vykon:data.vykon?String(data.vykon).split('/')[0].trim():''};
+      nactiOlej(vin);      // paralelně, nezdržuje filtry
       spojSKatalogem();
     })
     .catch(function(){
@@ -556,6 +722,7 @@ function render(){
   // Zachovat hlavičku z registru, pokud existuje (VIN cesta)
   var hl=$('out').querySelector('.card');
   if(!V.rucni && hl) html+=hl.outerHTML;
+  if(!V.rucni) html+=olejHtml();
 
   // Chipy pro volbu kódu (ruční cesta, skupina s více kódy)
   if(V.chipy){
