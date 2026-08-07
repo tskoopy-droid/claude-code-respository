@@ -249,7 +249,7 @@ function chyba(t){$('errBox').textContent=t;$('errBox').classList.add('visible')
 function varovani(h){$('warnBox').innerHTML+=(($('warnBox').innerHTML?'<br>':'')+h);
   $('warnBox').classList.add('visible')}
 function reset(){['errBox','warnBox'].forEach(function(i){$(i).classList.remove('visible');$(i).innerHTML=''});
-  $('out').innerHTML='';V=null;OLEJ=null}
+  $('out').innerHTML='';V=null;OLEJ=null;HLAVICKA=''}
 
 // ── Načtení katalogu značky (lazy, cache) ─────────────────────
 function nactiKatalog(zn){
@@ -752,8 +752,9 @@ function predvyberRucni(zn,vuz,kod){
 }
 
 // ── Hlavička s údaji z registru (jen VIN cesta) ───────────────
+var HLAVICKA='';
 function hlavickaRegistr(kod,kw,zdroj){
-  $('out').innerHTML=
+  HLAVICKA=
     '<div class="card"><div class="auto-head">'+
       logoZnackyHtml(stav.znacka)+
       '<span class="auto-name">'+esc(stav.znacka)+' '+esc(stav.model)+'</span>'+
@@ -768,6 +769,7 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
     '</div></div>';
+  $('out').innerHTML=HLAVICKA;
 }
 // Logo značky vozu do hlavičky — podle normalizovaného názvu z SOUBORY
 function logoZnackyHtml(znacka){
@@ -804,10 +806,8 @@ function vitez(items){
 function render(){
   if(!V) return;
   var html='';
-  // Zachovat hlavičku z registru, pokud existuje (VIN cesta)
-  var hl=$('out').querySelector('.card');
-  if(!V.rucni && hl) html+=hl.outerHTML;
-  if(!V.rucni) html+=olejHtml();
+  // Hlavička z registru — z proměnné, ne z DOM (jinak by se množila)
+  if(!V.rucni) html+=HLAVICKA+olejHtml();
 
   // Chipy pro volbu kódu (ruční cesta, skupina s více kódy)
   if(V.chipy){
@@ -861,13 +861,22 @@ function karta(x,ci){
     if(c==='kabinovy'){
       var teZnacky=vsechny.filter(function(f){return f.znacka===w.znacka})
         .sort(function(a,b){return cena(a)-cena(b)});
-      // základ = díl s cross-ref, jinak nejlevnější
+      // Max 3 volby: nejlevnější / prostřední / nejdražší.
+      // Při 4+ dílech se prostřední vybere ze středu seřazeného pole.
+      var vyb;
+      if(teZnacky.length<=3) vyb=teZnacky;
+      else vyb=[teZnacky[0],
+                teZnacky[Math.floor((teZnacky.length-1)/2)],
+                teZnacky[teZnacky.length-1]];
+      // Názvy: podle cross-ref, jinak podle pozice v ceně
       var zaklad=teZnacky.filter(function(f){return f.uhlik||f.premium})[0]||teZnacky[0];
-      varianty=teZnacky.map(function(f){
-        var n='Základní';
+      var pozice=['Základní','Uhlíkový','Premium'];
+      varianty=vyb.map(function(f,i){
+        var n;
         if(f.dil===zaklad.uhlik) n='Uhlíkový';
         else if(f.dil===zaklad.premium) n='Premium';
-        else if(f!==zaklad) n='Varianta';
+        else if(f===zaklad) n='Základní';
+        else n=(vyb.length===1?'Základní':(i===vyb.length-1?'Premium':pozice[i]||'Vyšší'));
         return {id:f.dil,n:n,f:f};
       });
       if(varianty.length>1){
