@@ -525,7 +525,8 @@ function nactiVin(){
             kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
             vykon:data.vykon?String(data.vykon).split('/')[0].trim():'',
             pohon:data.pohon||'',pohonRaw:data.pohonRaw||''};
-      nactiOlej(vin);      // paralelně, nezdržuje filtry
+      var palEl=(stav.palivo||'').toLowerCase();
+      if(palEl.indexOf('elektro')<0&&palEl!=='el') nactiOlej(vin);   // paralelně, nezdržuje filtry
       spojSKatalogem();
     })
     .catch(function(){
@@ -540,6 +541,15 @@ function spojSKatalogem(){
   var zn=normZnacka(stav.znacka);
   var kw=parseInt(stav.vykon,10)||0;
   var mdl=(stav.model||'').toUpperCase().trim();
+
+  // Elektromobil — filtry ani olej nedávají smysl, končí se rovnou.
+  var pal=(stav.palivo||'').toLowerCase();
+  if(pal.indexOf('elektro')>=0||pal==='el'){
+    hlavickaRegistr(null,kw,null); OLEJ=null;
+    varovani('Jde o <b>elektromobil</b> — servis elektromobilů zatím neděláme. '+
+      'Motorové filtry ani olej se u něj neřeší.');
+    return;
+  }
 
   if(!zn){hlavickaRegistr(null,kw,null);
     varovani('Značka <b>'+esc(stav.znacka)+'</b> zatím není v datech.');return}
