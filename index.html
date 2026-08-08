@@ -574,6 +574,21 @@ function spojSKatalogem(){
         if(podleModelu.length) pouzityModel=zk;
       }
     }
+    // Fallback pro sportovní verze: katalog často nemá S/RS řadu
+    // zvlášť (S7 → A7, RS6 → A6). Zkusí se až když přímé hledání
+    // selže; správnou motorizaci pak stejně určí kód motoru.
+    var pouzitoSNaA=false;
+    if(!podleModelu.length&&/^(RS|S)\s*\d/i.test(mdl)){
+      var jakoA=mdl.replace(/^(RS|S)\s*(\d)/i,'A$2');
+      var slovaA=jakoA.split(/\s+/).filter(Boolean);
+      for(var da=slovaA.length; da>0 && !podleModelu.length; da--){
+        var zkA=slovaA.slice(0,da).join(' ');
+        podleModelu=kandidati.filter(function(x){
+          return x.model.toUpperCase().indexOf(zkA)===0});
+        if(podleModelu.length){pouzityModel=zkA;pouzitoSNaA=true}
+      }
+    }
+
     var modelSedi=podleModelu.length>0;
     if(modelSedi) kandidati=podleModelu;
 
@@ -590,10 +605,14 @@ function spojSKatalogem(){
 
     hlavickaRegistr(r.kod,kw,r.zdroj);
 
+    if(pouzitoSNaA){
+      varovani('Model <b>'+esc(stav.model)+'</b> katalog nemá — hledalo se pod '+
+        '<b>'+esc(pouzityModel)+'</b>. Motorizaci určuje kód motoru, ale ověř výsledek.');
+    }
     if(mdl&&!modelSedi){
       varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu. '+
         'Hledá se napříč celou značkou '+esc(zn)+' — zkontroluj výsledek.');
-    } else if(modelSedi&&pouzityModel!==mdl){
+    } else if(modelSedi&&pouzityModel!==mdl&&!pouzitoSNaA){
       varovani('Model z registru je <b>'+esc(stav.model)+'</b>, v katalogu se hledalo podle '+
         '<b>'+esc(pouzityModel)+'</b> — karoserii katalog nerozlišuje.');
     }
