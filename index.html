@@ -323,6 +323,36 @@ function najdiKod(vozy,varianta,kodMotoru){
 }
 function maKod(x,kod){ return x.kody.indexOf(kod)>=0 }
 
+// ── Pohon podle názvu motorizace v katalogu ───────────────────
+// Pegas značí pohon všech kol slovem v názvu ("2.0 TDI quattro",
+// "1.8 TSI 4x4", "2.0 TDI 4motion"). Bez toho = jedna náprava.
+function jeVsechnyKola(motor){
+  return /\b(quattro|4x4|4motion|4matic|xdrive|awd|allrad)\b/i.test(motor||'');
+}
+// Zúžení podle pohonu z registru: "predni"/"zadni" → jen vozy bez
+// pohonu všech kol, "4x4" → jen ty s ním. Když by nezbylo nic,
+// filtr se neuplatní (data nemusí pohon rozlišovat).
+function preferPohon(vozy,pohon){
+  if(vozy.length<2||!pohon) return vozy;
+  var chce4x4=(pohon==='4x4');
+  var uzsi=vozy.filter(function(x){return jeVsechnyKola(x.motor)===chce4x4});
+  return uzsi.length?uzsi:vozy;
+}
+
+// ── Technický vs. marketingový název motorizace ───────────────
+// VAG od 2016 přeznačil motory ("2.0 TDI 140 kW" → "40 TDI"),
+// ale jde o TÝŽ motor se stejným kódem i díly. Když kód sedí na
+// obě varianty, drží se technický název (objem + palivo), protože
+// odpovídá tomu, co je v technickém průkazu.
+function jeMarketingovy(motor){
+  return /^\s*\d{2}\s/.test(motor||'');     // "40 TDI", "35 TFSI"
+}
+function preferTechnicky(vozy){
+  if(vozy.length<2) return vozy;
+  var tech=vozy.filter(function(x){return !jeMarketingovy(x.motor)});
+  return tech.length?tech:vozy;
+}
+
 // ── Modelový rok z 10. znaku VIN (ISO 3779 / 49 CFR 565.15) ───
 // Cyklus: A–Y bez I,O,Q,U,Z, pak 1–9. Opakuje se po 30 letech,
 // takže kód sedí na dva roky (2 = 1982 i 2012).
@@ -493,7 +523,8 @@ function nactiVin(){
       if(data.error){chyba(data.error);return}
       stav={vin:vin,znacka:data.znacka,model:data.model,typ:data.typ,varianta:data.varianta,
             kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
-            vykon:data.vykon?String(data.vykon).split('/')[0].trim():''};
+            vykon:data.vykon?String(data.vykon).split('/')[0].trim():'',
+            pohon:data.pohon||'',pohonRaw:data.pohonRaw||''};
       nactiOlej(vin);      // paralelně, nezdržuje filtry
       spojSKatalogem();
     })
@@ -575,6 +606,8 @@ function spojSKatalogem(){
     var zaklad=(kwSedi&&uzke.length)?uzke:kandidati;
     var vyber=zaklad.filter(function(x){return maKod(x,r.kod)});
     if(!vyber.length) vyber=kandidati.filter(function(x){return maKod(x,r.kod)});
+    vyber=preferPohon(vyber,stav.pohon);
+    vyber=preferTechnicky(vyber);
 
     // Stav výsledku: kód je daný z VIN, chipy netřeba
     V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
@@ -768,6 +801,7 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
+      radek('Pohon',stav.pohonRaw)+
     '</div></div>';
   $('out').innerHTML=HLAVICKA;
 }
