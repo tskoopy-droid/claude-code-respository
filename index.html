@@ -222,6 +222,14 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 // ║   'psa' = kód se závorkou 9HP (DV6DTED), model v Pegasím   ║
 // ║           tvaru C4 II (NC_) od 2009, navíc filtr podle     ║
 // ║           roku a slučování karoserií.                      ║
+// ║   'opel'= kód je v poli TYP MOTORU (ne ve Variantě), píše  ║
+// ║           se s mezerami (Z 16 XE) nebo se závorkou u       ║
+// ║           stellantisových (F 12 XHT (EB2ADTS)). Kód není   ║
+// ║           spolehlivý klíč — u přeznačkovaných modelů       ║
+// ║           (Antara, Agila, Karl, Combo D) píše registr jiné ║
+// ║           označení než Pegas, proto se páruje modelem,     ║
+// ║           objemem, palivem, výkonem a rokem a kód je jen   ║
+// ║           potvrzení, když sedne.                           ║
 // ╚═══════════════════════════════════════════════════════════╝
 var ZNACKY={
  'Škoda'  :{f:'skoda.json',     logo:'logoskoda.png',   nazev:/SKODA|ŠKODA/,      rezim:'vag'},
@@ -229,10 +237,17 @@ var ZNACKY={
  'Seat'   :{f:'seat.json',      logo:'logoseat.png',    nazev:/SEAT/,             rezim:'vag'},
  'Audi'   :{f:'audi.json',      logo:'logoaudi.png',    nazev:/AUDI/,             rezim:'vag'},
  'Peugeot':{f:'peugeot.json',   logo:'logopeugeot.png', nazev:/PEUGEOT/,          rezim:'psa'},
- 'Citroën':{f:'citroen.json',   logo:'logocitroen.png', nazev:/CITRO/,            rezim:'psa'}
+ 'Citroën':{f:'citroen.json',   logo:'logocitroen.png', nazev:/CITRO/,            rezim:'psa'},
+ 'Opel'   :{f:'opel.json',      logo:'logoopel.png',    nazev:/OPEL|VAUXHALL/,    rezim:'opel'}
 };
 var SOUBORY=ZNACKY;                      // starý název, ať nic jiného nepadá
 function jePSA(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='psa' }
+function jeOpel(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='opel' }
+// Režim právě zobrazované značky. Nastavuje se na jednom místě
+// (nastavRezim) a čte ho jen pasujici() — VAG i PSA se chovají
+// přesně jako dřív, protože pro ně je hodnota 'vag' / 'psa'.
+var AKT_REZIM='vag';
+function nastavRezim(zn){ AKT_REZIM=(ZNACKY[zn]&&ZNACKY[zn].rezim)||'vag' }
 var KATALOG={};              // načtená data: značka -> {vozy:[...]}
 // ID značek v Pegasu — parametr filter je base64 z
 // "BrandProductFieldsFilter%5B0%5D=ID". Ověřeno na reálných URL.
@@ -507,6 +522,283 @@ function parujPSA(DATA,zn,kw){
   render();
 }
 
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  OPEL — vlastní pravidla                                   ║
+// ║  Nic z tohohle bloku se u VAG ani PSA nepoužije.           ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisech z registru:                            ║
+// ║  · Meriva 1.7 DTI → Typ motoru Y17DT, Varianta AC11        ║
+// ║  · Antara 2.2 CDTi → Typ motoru Z22D1, Varianta BH11       ║
+// ║ Varianta je u Opelu bezobsažná (AC11/BH11). Kód nese pole  ║
+// ║ TYP MOTORU — opačně než u PSA.                             ║
+// ║ Antara (GM Korea) ukazuje, že se registr a Pegas u         ║
+// ║ přeznačkovaných modelů v označení motoru rozcházejí        ║
+// ║ (Z22D1 × A 22 DMH), proto kód nesmí být jediný klíč.       ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Pegas píše opelí kódy s mezerami ("Z 16 XE"), stellantisové
+// se závorkou ("HNP (EB2ADT)", "F 12 XHT (EB2ADTS)").
+// Normalizace na holý řetězec: vlastní kód + rodina ze závorky.
+function opelKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var s=String(k).toUpperCase();
+    var m=/^([^(]*)(?:\(([^)]*)\))?/.exec(s);
+    if(!m) return;
+    var a=(m[1]||'').replace(/[^A-Z0-9]/g,'');
+    var b=(m[2]||'').replace(/[^A-Z0-9]/g,'');
+    if(a.length>=3&&out.indexOf(a)<0) out.push(a);
+    if(b.length>=3&&out.indexOf(b)<0) out.push(b);
+  });
+  return out;
+}
+function opelKody(x){ return opelKodySeznam(x.kody) }
+function opelMaKod(x,kod){ return opelKody(x).indexOf(kod)>=0 }
+
+// Karosářské a výbavové přívlastky, které registr v obchodním
+// označení nemá. Vše od nich doprava se zahazuje.
+var OPEL_KAROSERIE=/\s+(LIMUZINA|KAROSERIE\/KOMBI|KAROSERIE|KOMBI|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|SPORTS TOURER|COUNTRY TOURER|GRAND SPORT|GTC|GTS|KUPE|COUPE|KABRIOLET|CABRIO|TWINTOP|CARAVAN|CLASSIC|MONOCAB|VAN)\b[\s\S]*$/;
+// Základní název modelu z katalogu.
+// "ASTRA H KAROSERIE/KOMBI (L70) 2004-2014" → "ASTRA"
+// POZOR: ořezává se generační písmeno A–L, ale NE "X" —
+// Mokka X, Crossland X a Grandland X jsou názvy, ne generace.
+function opelZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');                        // (T98), (P17, P2QO)
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');         // "od 2021"
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');         // "2004-2014"
+  // "MOKKA / MOKKA X", "GRANDLAND / GRANDLAND X" = dva názvy téhož
+  // vozu → bere se první. Lomítko uvnitř karoserie se nedělí.
+  if(m.indexOf('/')>=0 && !/(KAROSERIE|SCHRANKY|SCHRÁNKY|TOUR)\s*\//.test(m))
+    m=m.split('/')[0];
+  m=m.replace(/\s+/g,' ').trim();                      // bez toho by koncové
+  m=m.replace(OPEL_KAROSERIE,'');                      // písmeno nešlo useknout
+  m=m.replace(/\s+TOUR(\s|$)[\s\S]*$/,'');             // COMBO E TOUR / LIFE
+  m=m.replace(/\s+FAMILY\b[\s\S]*$/,'');               // ZAFIRA FAMILY B
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+[A-L]$/,'');                         // ASTRA H, CORSA D
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Model tak, jak ho píše registr. Obchodní označení u Opelu často
+// nese i motorizaci ("MERIVA 1.7DTI 16V"), někdy generaci pomlčkou.
+function opelZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');               // "… 1.7DTI 16V"
+  m=m.replace(OPEL_KAROSERIE,'');
+  m=m.replace(/\s+[A-L]$/,'');                         // "ASTRA-H" → ASTRA
+  return m.replace(/\s+/g,' ').trim();
+}
+// Roky výroby motorizace jako [od, do]
+function opelRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+// Objem z názvu motorizace ("2.2 CDTi 4x4" → 2.2). Elektro a GSE
+// objem nemají → null a filtr se neuplatní.
+function opelObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+// Palivo z registru na hodnotu v katalogu (benzin/nafta/elektro).
+function opelPalivo(p){
+  var s=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM$|^D$/.test(s)) return 'nafta';
+  if(/BENZ|PETROL|^BA$|^B$/.test(s)) return 'benzin';
+  return null;
+}
+// Pole Typ nese u Opelu platformu ("T98", "X01MONOCAB", "T98/KOMBI")
+// nebo generaci ("A-H", "P-J", "S-D", "0G-A", "CORSA-C").
+// Pegas má platformu v závorce názvu — "ASTRA G (T98)".
+function opelPlatformaSedi(model,typ){
+  var t=String(typ||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(t.length<3) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length>=3 && t.indexOf(c)>=0) ok=true });
+  return ok;
+}
+// Generační písmeno z Typu: "A-H"→H, "P-J"→J, "S-D"→D, "0G-A"→A.
+// POZOR: je to písmeno PLATFORMY, ne modelu — Zafira B stojí na
+// platformě Astry H a má "A-H/MONOCAB". Proto jen měkké zúžení.
+function opelGeneraceZTypu(typ){
+  var t=String(typ||'').toUpperCase().split('/')[0].trim();
+  var m=/-([A-L])$/.exec(t);
+  return m?m[1]:null;
+}
+// Generační písmeno z názvu v katalogu: "ASTRA H KOMBI" → H
+function opelGeneraceKatalogu(model){
+  var s=String(model||'').toUpperCase().replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
+  var z=opelZaklad(model);
+  if(!z||s.indexOf(z)!==0) return null;
+  var m=/^([A-L])\b/.exec(s.slice(z.length).trim());
+  return m?m[1]:null;
+}
+
+// Kód motoru z registru. Pořadí: Typ motoru (tam Opel kód má) →
+// text Varianty/Typu jako záchrana. VIN se ZÁMĚRNĚ neprohledává:
+// opelí kódy v něm nejsou a krátké řetězce by se trefily náhodou.
+function opelNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k){
+    var presne=null;
+    vozy.forEach(function(x){ opelKody(x).forEach(function(c){ if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var zdroje=[['Varianta',st.varianta],['Typ',st.typ]];
+  for(var i=0;i<zdroje.length;i++){
+    var v=String(zdroje[i][1]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length<5) continue;
+    var nej=null;
+    vozy.forEach(function(x){ opelKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:zdroje[i][0]};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování Opel ─────────────────────────────────────────────
+// Model → palivo → objem → výkon → rok. Kód motoru se použije jen
+// tehdy, když v katalogu vůbec existuje; jinak by Antara vypadla.
+// Každý krok se uplatní, jen když po něm něco zbude.
+function parujOpel(DATA,zn,kw){
+  var r=opelNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return opelMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=opelZakladRegistr(stav.model), modelSedi=true, mdlZTypu=false;
+  // Registr u části vozů obchodní označení nevyplňuje ("NEUVEDENÉ
+  // V SEZNAMU") a model je pak jen v Typu: CORSA-C, COMBO-C.
+  if(!mdl||/NEUVEDEN/.test(String(stav.model||'').toUpperCase())){
+    mdl=opelZakladRegistr(String(stav.typ||'').split('/')[0]);
+    mdlZTypu=!!mdl;
+  }
+  if(mdl){
+    var um=vyber.filter(function(x){return opelZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=opelZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // Platforma nebo generace z Typu — rozliší ASTRA G × H × J tam,
+  // kde obchodní označení je u všech jen "ASTRA". Měkké zúžení:
+  // když by nezbylo nic, krok se přeskočí.
+  var pl=vyber.filter(function(x){return opelPlatformaSedi(x.model,stav.typ)});
+  if(pl.length && pl.length<vyber.length) vyber=pl;
+  else {
+    var g=opelGeneraceZTypu(stav.typ);
+    if(g){
+      var ug=vyber.filter(function(x){return opelGeneraceKatalogu(x.model)===g});
+      if(ug.length && ug.length<vyber.length) vyber=ug;
+    }
+  }
+
+  var pal=opelPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  // Objem s tolerancí 60 cm³ — katalog uvádí obchodní objem
+  // (1.3 CDTI = 1248 cm³), přesná shoda by neseděla nikdy.
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=opelObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // Rok z VIN rozliší generace bez písmene v názvu
+  // (Mokka 2012–2019 × Mokka od 2020, Grandland X × Grandland).
+  var rok=rokZVin(stav.vin);
+  if(rok){
+    var ur=vyber.filter(function(x){var q=opelRoky(x); return rok>=q[0]&&rok<=q[1]});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  // Bez kódu, bez modelu a bez výkonu nebo objemu není co párovat —
+  // hledání napříč celou značkou by vrátilo náhodný vůz.
+  if(!r.kod && (!mdl || !modelSedi) && (!kw || !cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí model, kód motoru '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Opel nepodařilo najít. Vyber ho ručně přes výběr nahoře.');
+    return;
+  }
+
+  // Kód pro filtrování položek uvnitř karty. Když ho registr nedal
+  // (nebo ho katalog nezná), převezme se z nalezených řádků.
+  var kod=r.kod, chipy=null;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ opelKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+    else if(ks.length>1){
+      var rozlisuje=false;
+      vyber.forEach(function(x){ Object.keys(x.filtry).forEach(function(c){
+        (x.filtry[c]||[]).forEach(function(f){ if(f.kody&&f.kody.length) rozlisuje=true })})});
+      if(rozlisuje) chipy=ks; else kod=ks[0];
+    }
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'U přeznačkovaných modelů (Antara, Agila, Karl, Combo D) píše registr jiné '+
+      'označení než Pegas. Vůz se dohledal podle modelu, objemu, výkonu a roku — '+
+      'ověř motorizaci.');
+  else if(r.zdroj==='Varianta'||r.zdroj==='Typ')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se našel až v poli <b>'+esc(r.zdroj)+'</b>, '+
+      'ne v Typu motoru. Ověř, že motorizace sedí.');
+  if(mdlZTypu&&modelSedi)
+    varovani('Registr nevyplnil obchodní označení — model <b>'+esc(mdl)+
+      '</b> se vzal z pole Typ (<b>'+esc(stav.typ)+'</b>). Ověř výsledek.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model||stav.typ)+'</b> nesedí na žádný název v '+
+      'katalogu — hledalo se napříč celou značkou Opel. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci — '+
+      'filtr podle objemu se neuplatnil.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> z registru nesedí na žádný zbylý řádek. '+
+      'Zobrazeny všechny výkonové verze — ověř podle objemu.');
+
+  // Karoserie: motorové filtry jsou u verzí stejné, kabinový ne
+  // vždycky. Slučuje se stejným pravidlem jako u PSA.
+  var pocet=vyber.length, slouceno=false;
+  if(kod && pocet>1 && psaKabinaSedi(vyber,kod)){
+    vyber=[psaSluc(vyber)]; slouceno=true;
+  }
+  if(slouceno && pocet>1)
+    varovani('Vůz sedí na '+pocet+' karosářských verzích ('+
+      esc(vyber[0]._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+      '). Kabinový filtr je u nich stejný, takže jsou díly sloučené do jedné nabídky.');
+  if(!slouceno && pocet>1 && !chipy)
+    varovani('Zbylo '+pocet+' verzí a <b>liší se kabinovým filtrem</b> — '+
+      'vyber podle karoserie svého vozu.');
+
+  V={vozy:vyber,kod:kod,chipy:chipy,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1&&!slouceno&&!chipy};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
 // ── Pohon podle názvu motorizace v katalogu ───────────────────
 // Pegas značí pohon všech kol slovem v názvu ("2.0 TDI quattro",
 // "1.8 TSI 4x4", "2.0 TDI 4motion"). Bez toho = jedna náprava.
@@ -723,6 +1015,7 @@ function nactiVin(){
 // PŘEVZATO ze staré verze — jen pole nového formátu (model, vykon_kw, kody).
 function spojSKatalogem(){
   var zn=normZnacka(stav.znacka);
+  nastavRezim(zn);
   var kw=parseInt(stav.vykon,10)||0;
   var mdl=(stav.model||'').toUpperCase().trim();
 
@@ -745,6 +1038,8 @@ function spojSKatalogem(){
     // Peugeot / Citroën mají vlastní logiku — viz PSA blok výše.
     // Všechno pod touhle odbočkou je původní, ověřené párování VAG.
     if(jePSA(zn)){ parujPSA(DATA,zn,kw); return }
+    // Opel má vlastní logiku — viz OPEL blok výše.
+    if(jeOpel(zn)){ parujOpel(DATA,zn,kw); return }
 
     // 1) značka je daná souborem — kandidáti jsou všechny vozy
     var kandidati=DATA;
@@ -841,6 +1136,7 @@ function spojSKatalogem(){
 function rucniZnacka(zn,el){
   reset();
   zvolenaZn=zn;
+  nastavRezim(zn);
   document.querySelectorAll('.zn-tile.on').forEach(function(b){b.classList.remove('on')});
   if(el) el.classList.add('on');
   $('selMo').innerHTML='<option value="">Model…</option>'; $('selMo').disabled=true;
@@ -870,6 +1166,7 @@ var RIM=['I','II','III','IV','V','VI','VII','VIII'];
 // "model" (IBIZA II, IBIZA III), u jiných jeden model s generací ve slugu
 // (CORDOBA + seat--cordoba-1993--). Sjednotí se do základního názvu.
 function zakladniModel(m,zn){
+  if(jeOpel(zn)) return opelZaklad(m);
   if(jePSA(zn)) return psaZaklad(m);
   var s=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');
   return s||m;
@@ -894,6 +1191,9 @@ var R={vozy:[],gen:null,pal:null};
 // U PSA je generace přímo v názvu modelu (C4 II, Berlingo B9),
 // takže se jako klíč použije celý název a řadí se podle roku.
 function genKlic(x,zn){
+  // U Opelu je generace v názvu (ASTRA H, CORSA D) nebo ji nese
+  // jen rok (MOKKA × MOKKA od 2020) — klíčem je název + rok.
+  if(jeOpel(zn)) return 'Y'+opelRoky(x)[0]+'|'+x.model;
   if(jePSA(zn)) return 'Y'+psaRoky(x)[0]+'|'+x.model;
   var rim=rimskaZModelu(x.model);
   return rim?('R'+RIM.indexOf(rim)):('Y'+rokGenerace(x.slug));
@@ -920,7 +1220,7 @@ function krokyRucni(){
   if(R.gener&&R.gener.length>1){
     html+='<div class="mt-pal">Generace</div><div class="chips">'+R.gener.map(function(k){
       var sk=R.vozy.filter(function(x){return genKlic(x,R.zn)===k});
-      var popis=jePSA(R.zn)?sk[0].model.replace(/\s*\([^)]*\)/g,'')
+      var popis=(jePSA(R.zn)||jeOpel(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
         :(R.model+(rimskaZModelu(sk[0].model)?' '+rimskaZModelu(sk[0].model):''));
       return '<button class="chip'+(R.gen===k?' on':'')+'" onclick="zvolGen(\''+k+'\')">'+
         esc(popis)+' <span style="font-weight:400">'+rozsahLet(sk)+'</span></button>';
@@ -956,7 +1256,7 @@ function krokyRucni(){
   $('mtList').innerHTML=html;
 }
 function rucniMotorIdx(i,el){
-  var zn=zvolenaZn; reset();
+  var zn=zvolenaZn; reset(); nastavRezim(zn);
   document.querySelectorAll('.mt-row.on').forEach(function(b){b.classList.remove('on')});
   if(el) el.classList.add('on');
   var vuz=KATALOG[zn].vozy[i];
@@ -965,7 +1265,7 @@ function rucniMotorIdx(i,el){
   var rozlisuje=false;
   Object.keys(vuz.filtry).forEach(function(k){
     vuz.filtry[k].forEach(function(f){if(f.kody&&f.kody.length)rozlisuje=true})});
-  var kk=jePSA(zn)?psaKody(vuz):vuz.kody.slice();
+  var kk=jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice());
   V={vozy:[vuz],kod:kk.length===1?kk[0]:null,
      chipy:(kk.length>1&&rozlisuje)?kk:null,
      karty:[{rozbal:{},kab:'zakladni',volba:{}}],vice:false,rucni:true};
@@ -1050,7 +1350,11 @@ function radek(k,v){return v?'<div class="row"><span>'+esc(k)+'</span><span>'+es
 function pasujici(fl,kod){
   return (fl||[]).filter(function(f){
     if(!f.kody||!f.kody.length) return true;
-    return kod? f.kody.indexOf(kod)>=0 : false;
+    if(!kod) return false;
+    // U Opelu jsou kódy u dílů psané s mezerami ("Z 16 XE"), takže
+    // se porovnávají až po normalizaci. Ostatní značky beze změny.
+    if(AKT_REZIM==='opel') return opelKodySeznam(f.kody).indexOf(kod)>=0;
+    return f.kody.indexOf(kod)>=0;
   });
 }
 // Vítěz: Bosch → MAHLE → Febi, v rámci značky nejlevnější.
