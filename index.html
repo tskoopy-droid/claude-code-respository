@@ -637,6 +637,35 @@ function opelGeneraceKatalogu(model){
   return m?m[1]:null;
 }
 
+// Smí se karoserie sloučit? Rozhoduje kabinový filtr, ale porovnává
+// se jen u NEJVYŠŠÍ značky, kterou mají všechny verze — to je ta,
+// která se reálně zobrazí. Rozdíly u nižších značek jsou díra
+// v přiřazení u Pegasu (Corsa D: Bosch i MAHLE stejné, jen dvě
+// febi čísla jiná), ne skutečný rozdíl mezi karoseriemi.
+function opelKabinaSedi(vozy,kod){
+  var sady=vozy.map(function(x){ return pasujici(x.filtry.kabinovy,kod) })
+               .filter(function(a){return a.length});
+  if(sady.length<2) return true;
+  var zn=null;
+  for(var p=0;p<PRIORITA.length && !zn;p++){
+    var vsude=sady.every(function(s){
+      return s.some(function(f){return f.znacka===PRIORITA[p]})});
+    if(vsude) zn=PRIORITA[p];
+  }
+  var klice=sady.map(function(s){
+    var o={};
+    s.forEach(function(f){ if(!zn||f.znacka===zn) o[f.dil]=1 });
+    return Object.keys(o);
+  });
+  for(var i=0;i<klice.length;i++) for(var j=i+1;j<klice.length;j++){
+    var a=klice[i], b=klice[j];
+    var aVb=a.every(function(t){return b.indexOf(t)>=0});
+    var bVa=b.every(function(t){return a.indexOf(t)>=0});
+    if(!aVb&&!bVa) return false;
+  }
+  return true;
+}
+
 // Kód motoru z registru. Pořadí: Typ motoru (tam Opel kód má) →
 // text Varianty/Typu jako záchrana. VIN se ZÁMĚRNĚ neprohledává:
 // opelí kódy v něm nejsou a krátké řetězce by se trefily náhodou.
@@ -779,16 +808,44 @@ function parujOpel(DATA,zn,kw){
       'Zobrazeny všechny výkonové verze — ověř podle objemu.');
 
   // Karoserie: motorové filtry jsou u verzí stejné, kabinový ne
-  // vždycky. Slučuje se stejným pravidlem jako u PSA.
+  // vždycky. POZOR: slučovat se smí jen karoserie TÉHOŽ vozu —
+  // stejný model, stejná generace a překrývající se roky. Bez toho
+  // by se spojila Astra J s Insignií A (sdílí motor A20DTH) nebo
+  // Astra G Classic s Astrou H.
   var pocet=vyber.length, slouceno=false;
-  if(kod && pocet>1 && psaKabinaSedi(vyber,kod)){
-    vyber=[psaSluc(vyber)]; slouceno=true;
+  if(kod && pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=opelZaklad(x.model)+'|'+(opelGeneraceKatalogu(x.model)||'-');
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      // v rámci klíče ještě roky: Mokka 2012–2019 × Mokka od 2020
+      // mají stejný název i prázdnou generaci, ale nepřekrývají se
+      var q=opelRoky(x), kam=null;
+      skup[k].forEach(function(s,i){
+        if(kam===null){
+          var prekryv=s.some(function(y){var z=opelRoky(y);
+            return q[0]<=z[1] && z[0]<=q[1]});
+          if(prekryv) kam=i;
+        }});
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(s){
+        if(s.length>1 && opelKabinaSedi(s,kod)){ out.push(psaSluc(s)); slouceno=true }
+        else out=out.concat(s);
+      });
+    });
+    vyber=out;
   }
-  if(slouceno && pocet>1)
-    varovani('Vůz sedí na '+pocet+' karosářských verzích ('+
-      esc(vyber[0]._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
-      '). Kabinový filtr je u nich stejný, takže jsou díly sloučené do jedné nabídky.');
-  if(!slouceno && pocet>1 && !chipy)
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Vůz sedí na '+x._slouceno.length+' karosářských verzích ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        '). Kabinový filtr je u nich stejný, takže jsou díly sloučené do jedné nabídky.');
+    });
+  if(vyber.length>1 && !chipy)
     varovani('Zbylo '+pocet+' verzí a <b>liší se kabinovým filtrem</b> — '+
       'vyber podle karoserie svého vozu.');
 
