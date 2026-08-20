@@ -1270,9 +1270,15 @@ function zpracujFotku(input){
 //        objem, kodMotoru, cenaFiltr…}. Kategorie: km<=20000 = Standard,
 // nad = Long Life. V rámci kategorie vyhrává nejnižší priorita.
 var OLEJ=null;
-function nactiOlej(vin){
+// Rok a značka jdou z registru, který se volal o krok dřív — GAS
+// je tak nemusí tahat znovu. Rok = první registrace; u značek,
+// které kódují modelový rok do 10. znaku VIN (VAG, Opel, PSA),
+// si ho GAS spočítá z VINu sám a tenhle parametr ignoruje.
+function nactiOlej(vin,rok,znacka){
   OLEJ={nacita:true};   // ukázat placeholder, Castrol API bývá pomalé
-  fetch(window.GAS_URL+'?vin='+vin+'&action=olej',{redirect:'follow'})
+  fetch(window.GAS_URL+'?vin='+vin+'&action=olej'+
+        (rok?'&rok='+encodeURIComponent(rok):'')+
+        (znacka?'&znacka='+encodeURIComponent(znacka):''),{redirect:'follow'})
     .then(function(r){return r.json()})
     .then(function(d){
       if(!d||d.error||!d.oleje||!d.oleje.length){
@@ -1331,6 +1337,14 @@ function olejHtml(){
       'onerror="this.style.display=\'none\'">'+
     '<div class="section-title">Doporučený olej</div>'+
     '<div class="section-sub">Podle specifikace výrobce'+(objem?' · náplň '+esc(objem)+' l':'')+'</div>'+
+    // Castrol rozlišuje verze podle roku. Rok se bere z první
+    // registrace v zemi, kde byl vůz koupený — u dovozů bývá
+    // posunutý a auto mohlo před registrací stát i dva roky.
+    // Když rok nesedí na žádnou verzi, vybere se ta nejnovější.
+    '<div class="box warn visible" style="margin:0 0 12px;font-size:12.5px">'+
+      'Olej je vybraný podle <b>roku první registrace</b>. U dovezených vozů '+
+      'nemusí odpovídat roku výroby — u víc verzí motoru se bere ta nejnovější. '+
+      'Před objednáním ověř specifikaci.</div>'+
     taby+
     '<div class="olej-box"><div class="olej-head">'+
       '<span class="olej-name">'+esc(akt.nazev)+'</span>'+
@@ -1365,9 +1379,10 @@ function nactiVin(){
       stav={vin:vin,znacka:data.znacka,model:data.model,typ:data.typ,varianta:data.varianta,
             kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
             vykon:data.vykon?String(data.vykon).split('/')[0].trim():'',
-            pohon:data.pohon||'',pohonRaw:data.pohonRaw||''};
+            pohon:data.pohon||'',pohonRaw:data.pohonRaw||'',rok:data.rok||''};
       var palEl=(stav.palivo||'').toLowerCase();
-      if(palEl.indexOf('elektro')<0&&palEl!=='el') nactiOlej(vin);   // paralelně, nezdržuje filtry
+      // paralelně, nezdržuje filtry
+      if(palEl.indexOf('elektro')<0&&palEl!=='el') nactiOlej(vin,stav.rok,stav.znacka);
       spojSKatalogem();
     })
     .catch(function(){
@@ -1696,7 +1711,9 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Kód motoru z registru',stav.kodMotoru)+
       radek('Typ',stav.typ)+
       radek('Varianta',stav.varianta)+
-      radek('Modelový rok (z VIN)',rokZVin(stav.vin))+
+      // Renault a Dacia nekódují v 10. znaku VIN modelový rok
+      // (Thalia 2005 → 2003, Duster 2012 → 2004), tak se nezobrazuje.
+      radek('Modelový rok (z VIN)',AKT_REZIM==='renault'?'':rokZVin(stav.vin))+
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
