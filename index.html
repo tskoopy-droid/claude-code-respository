@@ -1235,6 +1235,22 @@ function mgZakladRegistr(model){
   m=m.replace(/^MG\s*/,'');
   return m.replace(/\s+/g,' ').trim();
 }
+// Modelový rok z VIN — u MG se NESMÍ použít obecné rokZVin().
+// Ověřeno na 25 vozech z registru: 10. znak MG plní správně, ale
+// rozlišení cyklu podle 7. znaku (americké 49 CFR) u něj NEPLATÍ —
+// 4 vozy mají na 7. pozici číslici (LSJWH40**0**8P…, LSJWS43**3**9T…)
+// a obecné pravidlo je posune o 30 let zpět (2024 → 1993).
+// MG se v ČR prodává od roku 2019, takže se cyklus fixuje na
+// novější; pojistka v rokZVin() pak stará britská MG (2005) vrátí
+// zpět sama, protože jinak by vyšel budoucí rok.
+function mgRokZVin(vin){
+  if(!vin||vin.length!==17) return null;
+  var i=VIN_ROKY.indexOf(vin.charAt(9));
+  if(i<0) return null;
+  var rok=2010+i, ted=new Date().getFullYear();
+  if(rok>ted+1) rok-=30;
+  return rok;
+}
 function mgRoky(x){
   var r=String(x.roky||'').match(/\d{4}/g);
   if(!r) return [0,9999];
@@ -1314,7 +1330,7 @@ function parujMG(DATA,zn,kw){
 
   // Rok z VIN rozliší generace se stejným názvem — ZS SUV (AZS1)
   // od 2017 × ZS SUV (ZS32) od 2024, HS (AS23) × HS (AS33).
-  var rok=rokZVin(stav.vin);
+  var rok=mgRokZVin(stav.vin);
   if(rok){
     var ur=vyber.filter(function(x){var q=mgRoky(x); return rok>=q[0]&&rok<=q[1]});
     if(ur.length) vyber=ur;
@@ -1932,7 +1948,11 @@ function hlavickaRegistr(kod,kw,zdroj){
       radek('Varianta',stav.varianta)+
       // Renault a Dacia nekódují v 10. znaku VIN modelový rok
       // (Thalia 2005 → 2003, Duster 2012 → 2004), tak se nezobrazuje.
-      radek('Modelový rok (z VIN)',AKT_REZIM==='renault'?'':rokZVin(stav.vin))+
+      // Renault a Dacia v 10. znaku modelový rok nekódují (Thalia 2005
+      // → 2003, Duster 2012 → 2004), tak se u nich nezobrazuje.
+      // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
+      radek('Modelový rok (z VIN)',AKT_REZIM==='renault'?'':
+        (AKT_REZIM==='mg'?mgRokZVin(stav.vin):rokZVin(stav.vin)))+
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
