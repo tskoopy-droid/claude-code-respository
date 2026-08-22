@@ -1379,12 +1379,19 @@ function parujFiat(DATA,zn,kw){
   // Rozliší generace se stejným typem vozu i motorem — Grande Punto
   // (2005–2015) × Punto EVO (2009–2012) × Punto 199 (od 2012).
   var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
-  var rokPouzit=false;
+  var rokMimo=false;
   if(rok){
     var ur=vyber.filter(function(x){
       var q=fiatRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
-    if(ur.length&&ur.length<vyber.length){ vyber=ur; rokPouzit=true; }
-    else if(ur.length) vyber=ur;
+    // Nesedí rok na žádného kandidáta? Pak to není jiná verze téhož
+    // vozu, ale JINÁ GENERACE, kterou v katalogu nemáme — Punto 176
+    // (1993–1999) × Punto 188 (1999–2012). Bez téhle pojistky by
+    // prefix "PUNTO" našel novější generaci a nabídl filtry z cizího
+    // auta. Tolerance ±1 stačí: první registrace je vždycky až po
+    // začátku výroby, jen může přesáhnout přes Nový rok.
+    // Uplatní se jen tam, kde se model našel přes prefix (viz níže) —
+    // když sedí kód motoru nebo typ vozu, rok jen zpřesňuje.
+    if(ur.length) vyber=ur; else rokMimo=true;
   }
   vyber=preferPohon(vyber,stav.pohon);
 
@@ -1392,10 +1399,14 @@ function parujFiat(DATA,zn,kw){
   // a výkonu napříč celou značkou — Fiat montoval stejné motory do
   // půlky palety a vyšlo by deset náhodných vozů, které vypadají
   // jako výsledek. Radši se řekne, že vůz v nabídce není.
-  if(!kodReg && !typSedi && !modelSedi){
+  if((!kodReg && !typSedi && !modelSedi) || (rokMimo && !kodReg && !typSedi)){
     varovani('Vůz <b>'+esc(stav.model||'—')+'</b>'+
-      (t.typ?' (typ '+esc(t.typ)+')':'')+' <b>není v katalogu Fiat</b> — '+
-      'kód motoru '+esc(stav.kodMotoru||'—')+' ani typ vozu nesedí na nic. '+
+      (t.typ?' (typ '+esc(t.typ)+')':'')+
+      (rok?', rok '+rok:'')+' <b>není v katalogu Fiat</b> — '+
+      (rokMimo
+        ? 'našla se sice podobně pojmenovaná řada, ale <b>jiné generace</b> '+
+          '(roky nesedí). Filtry z ní by na tenhle vůz nepasovaly. '
+        : 'kód motoru '+esc(stav.kodMotoru||'—')+' ani typ vozu nesedí na nic. ')+
       'Nutné <b>ruční nacenění</b>, nebo vyber vůz ručně přes výběr nahoře.');
     return;
   }
@@ -1465,8 +1476,11 @@ function parujFiat(DATA,zn,kw){
         ') — mají shodné filtry ve všech kategoriích.');
     });
   if(vyber.length>1)
-    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — '+
-      '<b>Fiat nedává kód motoru</b>, takže rozliš podle karoserie a roku.');
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší. '+
+      (kodReg
+        ? 'Kód motoru <b>'+esc(kodReg)+'</b> sedí na víc verzí — Fiat týž motor '+
+          'montoval do víc karoserií a palivových mutací. Rozliš podle karoserie.'
+        : 'Kód motoru z registru nepřišel, rozliš podle karoserie a roku.'));
 
   V={vozy:vyber,kod:kod,
      karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
