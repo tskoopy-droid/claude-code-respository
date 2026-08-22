@@ -199,7 +199,8 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
   <div id="out"></div>
 
   <div class="foot">
-    Pořadí značek: <b>Bosch → MAHLE → Febi</b> (nejlevnější v rámci značky). Cena = klasické dodání.<br>
+    Pořadí značek: <b>Bosch → MAHLE → Febi</b>, u MG <b>Bosch → Blue Print → Febi</b>
+    (nejlevnější v rámci značky). Cena = klasické dodání.<br>
     Kód motoru se ověřuje dvoustupňově: skupina motorizace → kódy u konkrétního dílu.<br>
     Kabinový filtr může mít varianty základní / uhlíkový / premium — přepínač u karty.
   </div>
@@ -236,6 +237,16 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 // ║           použitelná jen rodina (K9K F 7 → K9K), protože   ║
 // ║           registr nikdy nedá Pegasí příponu (K9K 636).     ║
 // ║           Platí i pro Dacii — stejná data, stejná pravidla.║
+// ║   'mg'  = jako Opel má kód v poli TYP MOTORU (15S4C), ale  ║
+// ║           sedí PŘESNĚ na katalog — přeznačkování se u SAIC ║
+// ║           neděje. Varianta (AB1PA) je bezobsažná a Typ     ║
+// ║           (/ SZS1) na závorku v názvu NESEDÍ (katalog má   ║
+// ║           AZS1), takže platforma se nepoužívá. Obchodní    ║
+// ║           označení nese značku ("MG ZS") — ořezává se.     ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ priorita = pořadí značek filtrů, když má značka jiné než   ║
+// ║           výchozí Bosch → MAHLE → Febi. MG má místo MAHLE  ║
+// ║           Blue Print (MAHLE pro SAIC nic nevede).          ║
 // ╚═══════════════════════════════════════════════════════════╝
 var ZNACKY={
  'Škoda'  :{f:'skoda.json',     logo:'logoskoda.png',   nazev:/SKODA|ŠKODA/,      rezim:'vag'},
@@ -246,21 +257,32 @@ var ZNACKY={
  'Citroën':{f:'citroen.json',   logo:'logocitroen.png', nazev:/CITRO/,            rezim:'psa'},
  'Opel'   :{f:'opel.json',      logo:'logoopel.png',    nazev:/OPEL|VAUXHALL/,    rezim:'opel'},
  'Renault':{f:'renault.json',   logo:'logorenault.png', nazev:/RENAULT/,          rezim:'renault'},
- 'Dacia'  :{f:'dacia.json',     logo:'logodacia.png',   nazev:/DACIA/,            rezim:'renault'}
+ 'Dacia'  :{f:'dacia.json',     logo:'logodacia.png',   nazev:/DACIA/,            rezim:'renault'},
+ 'MG'     :{f:'mg.json',        logo:'logomg.png',      nazev:/^MG\b|MORRIS GARAGES/, rezim:'mg',
+            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']}
 };
 var SOUBORY=ZNACKY;                      // starý název, ať nic jiného nepadá
 function jePSA(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='psa' }
 function jeOpel(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='opel' }
 function jeRenault(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='renault' }
+function jeMG(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='mg' }
 // Režim právě zobrazované značky. Nastavuje se na jednom místě
 // (nastavRezim) a čte ho jen pasujici() — VAG i PSA se chovají
 // přesně jako dřív, protože pro ně je hodnota 'vag' / 'psa'.
 var AKT_REZIM='vag';
-function nastavRezim(zn){ AKT_REZIM=(ZNACKY[zn]&&ZNACKY[zn].rezim)||'vag' }
+// Pořadí značek filtrů právě zobrazované značky vozu. Výchozí je
+// PRIORITA (Bosch → MAHLE → Febi) a platí pro všechny značky, které
+// si v tabulce nic nenastaví — jejich chování se tím nemění.
+var AKT_PRIORITA=null;
+function prio(){ return AKT_PRIORITA||PRIORITA }
+function nastavRezim(zn){
+  AKT_REZIM=(ZNACKY[zn]&&ZNACKY[zn].rezim)||'vag';
+  AKT_PRIORITA=(ZNACKY[zn]&&ZNACKY[zn].priorita)||null;
+}
 var KATALOG={};              // načtená data: značka -> {vozy:[...]}
 // ID značek v Pegasu — parametr filter je base64 z
 // "BrandProductFieldsFilter%5B0%5D=ID". Ověřeno na reálných URL.
-var ZN_ID={'BOSCH':2025,'MAHLE':3081,'FEBI BILSTEIN':3063};
+var ZN_ID={'BOSCH':2025,'MAHLE':3081,'FEBI BILSTEIN':3063,'BLUE PRINT':3072};
 var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
 var CAT={olejovy:['Olejový','olejovy-filtr'],vzduchovy:['Vzduchový','vzduchovy-filtr'],
          kabinovy:['Kabinový','kabinovy-vzduchovy-filtr'],palivovy:['Palivový','palivovy-filtr']};
@@ -268,7 +290,8 @@ var PRIORITA=['BOSCH','MAHLE','FEBI BILSTEIN'];
 // Loga značek filtrů — soubory vedle stránky. Poměr stran se řeší
 // v CSS (object-fit), takže obrázky není potřeba upravovat.
 // Když soubor chybí, zobrazí se název značky textem.
-var LOGA={'BOSCH':'logobosch.png','MAHLE':'logomahle.png','FEBI BILSTEIN':'logofebi.png'};
+var LOGA={'BOSCH':'logobosch.png','MAHLE':'logomahle.png','FEBI BILSTEIN':'logofebi.png',
+          'BLUE PRINT':'logoblue.png'};
 function znackaHtml(zn){
   var l=LOGA[zn];
   if(!l) return esc(zn);
@@ -656,10 +679,10 @@ function opelKabinaSedi(vozy,kod){
                .filter(function(a){return a.length});
   if(sady.length<2) return true;
   var zn=null;
-  for(var p=0;p<PRIORITA.length && !zn;p++){
+  for(var p=0;p<prio().length && !zn;p++){
     var vsude=sady.every(function(s){
-      return s.some(function(f){return f.znacka===PRIORITA[p]})});
-    if(vsude) zn=PRIORITA[p];
+      return s.some(function(f){return f.znacka===prio()[p]})});
+    if(vsude) zn=prio()[p];
   }
   var klice=sady.map(function(s){
     var o={};
@@ -981,10 +1004,10 @@ function renDilySedi(vozy){
   var kats=Object.keys(CAT);
   for(var i=0;i<kats.length;i++){
     var kat=kats[i], zn=null;
-    for(var p=0;p<PRIORITA.length && !zn;p++){
+    for(var p=0;p<prio().length && !zn;p++){
       var vsude=vozy.every(function(x){
-        return (x.filtry[kat]||[]).some(function(f){return f.znacka===PRIORITA[p]})});
-      if(vsude) zn=PRIORITA[p];
+        return (x.filtry[kat]||[]).some(function(f){return f.znacka===prio()[p]})});
+      if(vsude) zn=prio()[p];
     }
     if(!zn){
       // žádnou značku nemají všichni → kategorie se nedá porovnat.
@@ -1158,6 +1181,182 @@ function parujRenault(DATA,zn,kw){
       'nejlevnější varianta — přípona je vyražená na bloku motoru.');
 
   V={vozy:vyber,kod:kod,chipy:chipy,nezavazne:!!chipy,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  MG (SAIC) — vlastní pravidla                              ║
+// ║  Nic z tohohle bloku se u ostatních značek nepoužije.      ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisu z registru (MG ZS 1.5, 2025):            ║
+// ║  · Typ motoru 15S4C → katalog "ZS SUV (AZS1)" 1.5 VTi 78kW ║
+// ║    PŘESNÁ shoda. Kód je v Typu motoru jako u Opelu, ale    ║
+// ║    na rozdíl od něj sedí — SAIC nic nepřeznačkovává.       ║
+// ║  · Varianta AB1PA — bezobsažná, nepoužívá se.              ║
+// ║  · Typ "/ SZS1" × katalog "(AZS1)" — NESEDÍ, platforma se  ║
+// ║    jako klíč nepoužívá.                                    ║
+// ║  · Obchodní označení "MG ZS" nese značku; katalog ji má    ║
+// ║    jen u MG 3 a MG 6, u HS a ZS ne → ořezává se z obou.    ║
+// ║ Rok z VIN funguje (10. znak S = 2025, sedí na registraci). ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Kódy v katalogu jsou alfanumerické, občas s mezerou ("18 K4G").
+function mgKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=3&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function mgKody(x){ return mgKodySeznam(x.kody) }
+function mgMaKod(x,kod){ return mgKody(x).indexOf(kod)>=0 }
+
+// "ZS SUV (AZS1) od 2017" → "ZS" · "MG 6 limuzina od 2010" → "6"
+var MG_KAROSERIE=/\s+(SUV|LIMUZINA|LIMUZÍNA|HATCHBACK|KOMBI|KAROSERIE\/KOMBI|KUPE|COUPE|KABRIOLET|CABRIO|VAN)\b[\s\S]*$/;
+function mgZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');                        // (AZS1), (ZP2_)
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');         // "od 2017"
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');         // "2010-2026"
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(MG_KAROSERIE,'');
+  m=m.replace(/^MG\s*/,'');                            // "MG 3" → "3"
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Registr píše obchodní označení včetně značky ("MG ZS", "MG HS").
+function mgZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');               // "… 1.5 T"
+  m=m.replace(MG_KAROSERIE,'');
+  m=m.replace(/^MG\s*/,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+function mgRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function mgObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function mgPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG/.test(t)) return 'benzin';
+  return null;
+}
+// Kód motoru: pole Typ motoru, přesná shoda. Když nesedne, hledá se
+// jako podřetězec v Typu a Variantě. VIN se neprohledává — kódy
+// jako "GS61" by se v něm trefily náhodou.
+function mgNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k){
+    var presne=null;
+    vozy.forEach(function(x){ mgKody(x).forEach(function(c){ if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var zdroje=[['Typ',st.typ],['Varianta',st.varianta]];
+  for(var i=0;i<zdroje.length;i++){
+    var v=String(zdroje[i][1]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length<4) continue;
+    var nej=null;
+    vozy.forEach(function(x){ mgKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:zdroje[i][0]};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování MG ───────────────────────────────────────────────
+// Kód motoru → model → palivo → objem → výkon → rok.
+// Každý krok se uplatní, jen když po něm něco zbude.
+function parujMG(DATA,zn,kw){
+  var r=mgNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return mgMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=mgZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(String(stav.model||'').toUpperCase())) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return mgZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=mgZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  var pal=mgPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=mgObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // Rok z VIN rozliší generace se stejným názvem — ZS SUV (AZS1)
+  // od 2017 × ZS SUV (ZS32) od 2024, HS (AS23) × HS (AS33).
+  var rok=rokZVin(stav.vin);
+  if(rok){
+    var ur=vyber.filter(function(x){var q=mgRoky(x); return rok>=q[0]&&rok<=q[1]});
+    if(ur.length) vyber=ur;
+  }
+
+  if(!r.kod && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu MG nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  // Kód pro filtrování položek uvnitř karty
+  var kod=r.kod;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ mgKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu, výkonu a roku — ověř motorizaci.');
+  else if(r.zdroj==='Typ'||r.zdroj==='Varianta')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se našel až v poli <b>'+esc(r.zdroj)+
+      '</b>, ne v Typu motoru. Ověř, že motorizace sedí.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se napříč celou značkou MG. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení — rozliš podle objemu a roků.');
+
+  V={vozy:vyber,kod:kod,
      karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
      vice:vyber.length>1};
   predvyberRucni(zn,vyber[0],kod);
@@ -1437,6 +1636,8 @@ function spojSKatalogem(){
     if(jeOpel(zn)){ parujOpel(DATA,zn,kw); return }
     // Renault a Dacia mají vlastní logiku — viz RENAULT blok výše.
     if(jeRenault(zn)){ parujRenault(DATA,zn,kw); return }
+    // MG má vlastní logiku — viz MG blok výše.
+    if(jeMG(zn)){ parujMG(DATA,zn,kw); return }
 
     // 1) značka je daná souborem — kandidáti jsou všechny vozy
     var kandidati=DATA;
@@ -1563,6 +1764,7 @@ var RIM=['I','II','III','IV','V','VI','VII','VIII'];
 // "model" (IBIZA II, IBIZA III), u jiných jeden model s generací ve slugu
 // (CORDOBA + seat--cordoba-1993--). Sjednotí se do základního názvu.
 function zakladniModel(m,zn){
+  if(jeMG(zn)) return mgZaklad(m);
   if(jeRenault(zn)) return renZaklad(m);
   if(jeOpel(zn)) return opelZaklad(m);
   if(jePSA(zn)) return psaZaklad(m);
@@ -1591,6 +1793,7 @@ var R={vozy:[],gen:null,pal:null};
 function genKlic(x,zn){
   // U Opelu je generace v názvu (ASTRA H, CORSA D) nebo ji nese
   // jen rok (MOKKA × MOKKA od 2020) — klíčem je název + rok.
+  if(jeMG(zn)) return 'Y'+mgRoky(x)[0]+'|'+x.model;
   if(jeRenault(zn)) return 'Y'+renRoky(x)[0]+'|'+x.model;
   if(jeOpel(zn)) return 'Y'+opelRoky(x)[0]+'|'+x.model;
   if(jePSA(zn)) return 'Y'+psaRoky(x)[0]+'|'+x.model;
@@ -1619,7 +1822,7 @@ function krokyRucni(){
   if(R.gener&&R.gener.length>1){
     html+='<div class="mt-pal">Generace</div><div class="chips">'+R.gener.map(function(k){
       var sk=R.vozy.filter(function(x){return genKlic(x,R.zn)===k});
-      var popis=(jePSA(R.zn)||jeOpel(R.zn)||jeRenault(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
+      var popis=(jePSA(R.zn)||jeOpel(R.zn)||jeRenault(R.zn)||jeMG(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
         :(R.model+(rimskaZModelu(sk[0].model)?' '+rimskaZModelu(sk[0].model):''));
       return '<button class="chip'+(R.gen===k?' on':'')+'" onclick="zvolGen(\''+k+'\')">'+
         esc(popis)+' <span style="font-weight:400">'+rozsahLet(sk)+'</span></button>';
@@ -1664,8 +1867,9 @@ function rucniMotorIdx(i,el){
   var rozlisuje=false;
   Object.keys(vuz.filtry).forEach(function(k){
     vuz.filtry[k].forEach(function(f){if(f.kody&&f.kody.length)rozlisuje=true})});
-  var kk=jeRenault(zn)?renKody(vuz):
-         (jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice()));
+  var kk=jeMG(zn)?mgKody(vuz):
+         (jeRenault(zn)?renKody(vuz):
+         (jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice())));
   V={vozy:[vuz],kod:kk.length===1?kk[0]:null,
      chipy:(kk.length>1&&rozlisuje)?kk:null,
      karty:[{rozbal:{},kab:'zakladni',volba:{}}],vice:false,rucni:true};
@@ -1759,13 +1963,16 @@ function pasujici(fl,kod){
     // se porovnávají až po normalizaci. Ostatní značky beze změny.
     if(AKT_REZIM==='opel') return opelKodySeznam(f.kody).indexOf(kod)>=0;
     if(AKT_REZIM==='renault') return renKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='mg') return mgKodySeznam(f.kody).indexOf(kod)>=0;
     return f.kody.indexOf(kod)>=0;
   });
 }
-// Vítěz: Bosch → MAHLE → Febi, v rámci značky nejlevnější.
+// Vítěz: podle pořadí značek, v rámci značky nejlevnější.
+// Výchozí Bosch → MAHLE → Febi, u MG Bosch → Blue Print → Febi.
 function vitez(items){
-  for(var i=0;i<PRIORITA.length;i++){
-    var b=items.filter(function(f){return f.znacka===PRIORITA[i]});
+  var P=prio();
+  for(var i=0;i<P.length;i++){
+    var b=items.filter(function(f){return f.znacka===P[i]});
     if(b.length){
       b.sort(function(a,c){return cena(a)-cena(c)});
       return b[0];
@@ -1870,7 +2077,7 @@ function karta(x,ci){
         videne[f.znacka]=1; ostatni.push(f);
       });
       ostatni.sort(function(a,b){
-        return PRIORITA.indexOf(a.znacka)-PRIORITA.indexOf(b.znacka)});
+        return prio().indexOf(a.znacka)-prio().indexOf(b.znacka)});
     } else {
       ostatni=vsechny.filter(function(f){return f!==aktivni});
       ostatni.sort(function(a,b){return cena(a)-cena(b)});
