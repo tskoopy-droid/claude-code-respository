@@ -1372,10 +1372,19 @@ function parujFiat(DATA,zn,kw){
     var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
     if(uw.length) vyber=uw; else kwSedi=false;
   }
-  var rok=rokZVin(stav.vin);
+  // ROK. Fiat modelový rok do 10. znaku VIN NEKÓDUJE — u Punta 199
+  // je tam "0", což v ISO 3779 sekvenci vůbec není. Použije se proto
+  // ROK PRVNÍ REGISTRACE z registru. Tolerance ±1 rok: registrace
+  // bývá pár měsíců po výrobě a přesahuje přes Nový rok.
+  // Rozliší generace se stejným typem vozu i motorem — Grande Punto
+  // (2005–2015) × Punto EVO (2009–2012) × Punto 199 (od 2012).
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  var rokPouzit=false;
   if(rok){
-    var ur=vyber.filter(function(x){var q=fiatRoky(x); return rok>=q[0]&&rok<=q[1]});
-    if(ur.length) vyber=ur;
+    var ur=vyber.filter(function(x){
+      var q=fiatRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    if(ur.length&&ur.length<vyber.length){ vyber=ur; rokPouzit=true; }
+    else if(ur.length) vyber=ur;
   }
   vyber=preferPohon(vyber,stav.pohon);
 
@@ -2250,8 +2259,13 @@ function hlavickaRegistr(kod,kw,zdroj){
       // Renault a Dacia v 10. znaku modelový rok nekódují (Thalia 2005
       // → 2003, Duster 2012 → 2004), tak se u nich nezobrazuje.
       // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
-      radek('Modelový rok (z VIN)',AKT_REZIM==='renault'?'':
+      // Renault, Dacia a Fiat v 10. znaku modelový rok nekódují
+      // (Thalia 2005 → 2003, Duster 2012 → 2004, Punto 199 má "0").
+      // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
+      radek('Modelový rok (z VIN)',
+        (AKT_REZIM==='renault'||AKT_REZIM==='fiat')?'':
         (AKT_REZIM==='mg'?mgRokZVin(stav.vin):rokZVin(stav.vin)))+
+      radek('Rok 1. registrace',AKT_REZIM==='fiat'?(stav.rok||''):'')+
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
