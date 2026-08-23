@@ -115,8 +115,17 @@ select:disabled{color:#cbd5e1;background:var(--bg)}
 .f-name{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700}
 .f-price{font-size:17px;font-weight:700;white-space:nowrap}
 .f-brand{font-size:12px;font-weight:700;color:var(--text);margin-top:6px;
-  display:flex;align-items:center;gap:6px;min-height:20px}
+  display:flex;align-items:flex-end;flex-wrap:wrap;gap:6px;min-height:20px}
 .f-logo{height:18px;max-width:82px;width:auto;object-fit:contain;object-position:left center;display:block}
+/* Logo značky filtru na vlastním řádku, pod ním název značky a číslo
+   dílu v jedné řádce. Samotné logo nestačí — u některých značek
+   (Blue Print) není z obrázku poznat, o koho jde. */
+.zn-blok{display:block}
+.zn-blok .f-logo{height:20px;max-width:90px;margin-bottom:2px}
+.zn-nazev{font-size:11px;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;color:var(--text-muted);line-height:1.1}
+.zn-dil{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  font-weight:600;color:var(--text);letter-spacing:0;text-transform:none}
 .f-part{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--text-muted);margin:2px 0 8px;word-break:break-all}
 .f-link{font-size:12.5px;color:var(--blue);text-decoration:none;font-weight:600}
 .f-link:hover{text-decoration:underline}
@@ -299,9 +308,23 @@ var PRIORITA=['BOSCH','MAHLE','FEBI BILSTEIN'];
 // Když soubor chybí, zobrazí se název značky textem.
 var LOGA={'BOSCH':'logobosch.png','MAHLE':'logomahle.png','FEBI BILSTEIN':'logofebi.png',
           'BLUE PRINT':'logoblue.png'};
-function znackaHtml(zn){
+// Značka dílu: logo na vlastním řádku, pod ním "ZNAČKA číslo-dílu".
+// Když logo chybí nebo se nenačte, zůstane jen text — nic se nerozbije.
+function znackaHtml(zn,dil){
   var l=LOGA[zn];
-  if(!l) return esc(zn);
+  var popis='<span class="zn-nazev">'+esc(zn)+'</span>'+
+            (dil?' <span class="zn-dil">'+esc(dil)+'</span>':'');
+  if(!l) return popis;
+  return '<span class="zn-blok">'+
+    '<img class="f-logo" src="'+l+'" alt="'+esc(zn)+'" loading="lazy" '+
+      'onerror="this.style.display=\'none\'">'+
+    '<span style="display:block">'+popis+'</span></span>';
+}
+// Kompaktní varianta do seznamu "další varianty" — tam je řádek úzký,
+// takže logo a název vedle sebe.
+function znackaHtmlMaly(zn){
+  var l=LOGA[zn];
+  if(!l) return '<span class="zn-nazev">'+esc(zn)+'</span>';
   return '<img class="f-logo" src="'+l+'" alt="'+esc(zn)+'" loading="lazy" '+
     'onerror="this.replaceWith(document.createTextNode(\''+esc(zn)+'\'))">';
 }
@@ -2441,9 +2464,9 @@ function karta(x,ci){
 
     return '<div class="f'+kab+'"><div class="f-top">'+
       '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">'+cena(aktivni)+' Kč</span></div>'+
-      '<div class="f-brand">'+znackaHtml(aktivni.znacka)+
+      '<div class="f-brand">'+znackaHtml(aktivni.znacka,aktivni.dil)+
         (ks.volba[c]?' <span class="badge b" style="margin:0">ručně</span>':'')+'</div>'+
-      '<div class="f-part">'+esc(aktivni.dil)+'</div>'+
+      '<div style="height:6px"></div>'+
       (varianty?'<div class="vars">'+varianty.map(function(v){
         return '<button class="var-btn'+(v.f===aktivni?' on':'')+
           '" onclick="prepniKab('+ci+',\''+v.id+'\')">'+v.n+' · '+cena(v.f)+' Kč</button>'}).join('')+'</div>':'')+
@@ -2454,7 +2477,7 @@ function karta(x,ci){
         (rozbal?'<div class="more-list">'+ostatni.map(function(f){
           return '<div class="alt-row">'+
             '<button class="alt-pick" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">'+
-              '<span class="alt-zn">'+znackaHtml(f.znacka)+'</span>'+
+              '<span class="alt-zn">'+znackaHtmlMaly(f.znacka)+'</span>'+
               (jenZnacka?'':'<span class="p">'+esc(f.dil)+'</span>')+
               (f.kody&&f.kody.length?'<span class="badge b" style="margin:0">'+esc(f.kody.join(','))+'</span>':'')+
               (jenZnacka?'':'<b class="alt-cena">'+cena(f)+' Kč</b>')+
