@@ -283,7 +283,8 @@ var ZNACKY={
  'Kia'    :{f:'kia.json',       logo:'logokia.png',     nazev:/\bKIA\b/,          rezim:'korea',
             priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']},
  'Hyundai':{f:'hyundai.json',   logo:'logohyundai.png', nazev:/HYUNDAI/,          rezim:'korea',
-            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']}
+            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']},
+ 'Ford'   :{f:'ford.json',      logo:'logoford.png',    nazev:/FORD/,             rezim:'ford'}
 };
 var SOUBORY=ZNACKY;                      // starý název, ať nic jiného nepadá
 function jePSA(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='psa' }
@@ -292,6 +293,7 @@ function jeRenault(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='renault' }
 function jeMG(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='mg' }
 function jeFiat(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='fiat' }
 function jeKorea(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='korea' }
+function jeFord(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='ford' }
 // Režim právě zobrazované značky. Nastavuje se na jednom místě
 // (nastavRezim) a čte ho jen pasujici() — VAG i PSA se chovají
 // přesně jako dřív, protože pro ně je hodnota 'vag' / 'psa'.
@@ -1221,6 +1223,239 @@ function parujRenault(DATA,zn,kw){
       'nejlevnější varianta — přípona je vyražená na bloku motoru.');
 
   V={vozy:vyber,kod:kod,chipy:chipy,nezavazne:!!chipy,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  FORD — vlastní pravidla                                   ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisu z registru (S-MAX 2.0 TDCi, 2009):       ║
+// ║  · Kód motoru je v poli TYP MOTORU — QXWA. Čtyřznakový,    ║
+// ║    holý, jako u VAG. Sedí na katalog přesně.               ║
+// ║  · Varianta kód obsahuje taky (QXWA1S) → záloha.           ║
+// ║  · Pole Typ nese platformu ("/ WA6"), Pegas ji má          ║
+// ║    v závorce: GALAXY II (WA6), S-MAX (WA6). POZOR:         ║
+// ║    platforma sama model NEURČÍ — Galaxy a S-MAX jsou       ║
+// ║    sourozenci na téže platformě. Rozhodne až obchodní      ║
+// ║    označení, které je u Fordu čisté (S-MAX, FOCUS).        ║
+// ║  · Rok: 1. registrace. U toho S-MAXu je 2009 (Rakousko)    ║
+// ║    a v ČR až 2018 — dovoz. Bere se ten první.              ║
+// ║  · Karosářské přívlastky: Turnier, kombi, limuzína,        ║
+// ║    Šikmá zadní část, Van, MK I/II/III.                     ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// "ENK6(DXRA)" → ENK6 + DXRA, "WL-T" → WLT, jinak holý kód
+function fordKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var m=/^\s*([A-Z0-9-]+)\s*(?:\(([^)]*)\))?\s*$/.exec(String(k).toUpperCase());
+    if(m){
+      var a=m[1].replace(/[^A-Z0-9]/g,'');
+      if(a.length>=3&&out.indexOf(a)<0) out.push(a);
+      if(m[2]){ var b=m[2].replace(/[^A-Z0-9]/g,'');
+        if(b.length>=3&&out.indexOf(b)<0) out.push(b) }
+      return;
+    }
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=3&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function fordKody(x){ return fordKodySeznam(x.kody) }
+function fordMaKod(x,kod){ return fordKody(x).indexOf(kod)>=0 }
+
+var FORD_KAROSERIE=/\s+(TURNIER|KAROSERIE\/KOMBI|KOMBI|LIMUZINA|LIMUZÍNA|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|SKRINOVA\/VELKOPROSTOROVA LIMUZINA|SKŘÍŇOVÁ\/VELKOPROSTOROVÁ LIMUZÍNA|VELKOPROSTOROVA|KABRIOLET|KUPE|\bVAN\b|EXPRESS)\b[\s\S]*$/;
+function fordZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+MK\s+(I{1,3}|IV|V|VI{1,3})\b[\s\S]*$/,'');   // GALAXY MK II VAN
+  m=m.replace(FORD_KAROSERIE,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');            // FOCUS II, FIESTA VII
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Obchodní označení z registru je u Fordu čisté (S-MAX, FOCUS),
+// ale pro jistotu se ořízne motorizace i karoserie.
+function fordZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');
+  m=m.replace(FORD_KAROSERIE,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+function fordRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function fordObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function fordPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|ETANOL/.test(t)) return 'benzin';
+  return null;
+}
+// Platforma ze závorky ("GALAXY II (WA6)" → WA6) proti poli Typ ("/ WA6")
+function fordPlatformaSedi(model,typ){
+  var t=String(typ||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ');
+  var slova=t.split(/\s+/).filter(function(q){return q.length>=2});
+  if(!slova.length) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length<2) return;
+    slova.forEach(function(q){ if(q===c) ok=true });
+  });
+  return ok;
+}
+// Kód motoru: pole Typ motoru, pak Varianta (obsahuje ho jako začátek).
+function fordNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k.length>=3){
+    var presne=null;
+    vozy.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var v=String(st.varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(v.length>=4){
+    var nej=null;
+    vozy.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)===0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:'varianta'};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování Ford ─────────────────────────────────────────────
+// Kód motoru → obchodní označení → platforma → palivo → objem
+// → výkon → rok 1. registrace.
+function parujFord(DATA,zn,kw){
+  var r=fordNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return fordMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=fordZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(String(stav.model||'').toUpperCase())) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return fordZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=fordZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // Platforma — měkké zúžení. Galaxy a S-MAX sdílejí WA6, takže
+  // sama nerozliší; uplatní se jen když opravdu ubere.
+  var pl=vyber.filter(function(x){return fordPlatformaSedi(x.model,stav.typ)});
+  if(pl.length && pl.length<vyber.length) vyber=pl;
+
+  var pal=fordPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=fordObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  if(rok){
+    var ur=vyber.filter(function(x){
+      var q=fordRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  if(!r.kod && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Ford nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=fordZaklad(x.model);
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=fordRoky(x), kam=null;
+      skup[k].forEach(function(sk,i){
+        if(kam===null && sk.some(function(y){var z=fordRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(sk){
+        if(sk.length>1 && renDilySedi(sk)){ out.push(psaSluc(sk)); slouceno=true }
+        else out=out.concat(sk);
+      });
+    });
+    vyber=out;
+  }
+
+  var kod=r.kod;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu a výkonu — ověř motorizaci.');
+  else if(r.zdroj==='varianta')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se vzal z <b>Varianty</b>, pole Typ motoru '+
+      'bylo prázdné. Ověř, že motorizace sedí.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se jen podle kódu motoru napříč celou značkou Ford.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — '+
+      'rozliš podle karoserie a roku.');
+
+  V={vozy:vyber,kod:kod,
      karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
      vice:vyber.length>1};
   predvyberRucni(zn,vyber[0],kod);
@@ -2246,6 +2481,8 @@ function spojSKatalogem(){
     if(jeFiat(zn)){ parujFiat(DATA,zn,kw); return }
     // Kia a Hyundai mají vlastní logiku — viz KOREA blok výše.
     if(jeKorea(zn)){ parujKorea(DATA,zn,kw); return }
+    // Ford má vlastní logiku — viz FORD blok výše.
+    if(jeFord(zn)){ parujFord(DATA,zn,kw); return }
 
     // 1) značka je daná souborem — kandidáti jsou všechny vozy
     var kandidati=DATA;
@@ -2372,6 +2609,7 @@ var RIM=['I','II','III','IV','V','VI','VII','VIII'];
 // "model" (IBIZA II, IBIZA III), u jiných jeden model s generací ve slugu
 // (CORDOBA + seat--cordoba-1993--). Sjednotí se do základního názvu.
 function zakladniModel(m,zn){
+  if(jeFord(zn)) return fordZaklad(m);
   if(jeKorea(zn)) return korZaklad(m);
   if(jeFiat(zn)) return fiatZaklad(m);
   if(jeMG(zn)) return mgZaklad(m);
@@ -2403,6 +2641,7 @@ var R={vozy:[],gen:null,pal:null};
 function genKlic(x,zn){
   // U Opelu je generace v názvu (ASTRA H, CORSA D) nebo ji nese
   // jen rok (MOKKA × MOKKA od 2020) — klíčem je název + rok.
+  if(jeFord(zn)) return 'Y'+fordRoky(x)[0]+'|'+x.model;
   if(jeKorea(zn)) return 'Y'+korRoky(x)[0]+'|'+x.model;
   if(jeFiat(zn)) return 'Y'+fiatRoky(x)[0]+'|'+x.model;
   if(jeMG(zn)) return 'Y'+mgRoky(x)[0]+'|'+x.model;
@@ -2434,7 +2673,7 @@ function krokyRucni(){
   if(R.gener&&R.gener.length>1){
     html+='<div class="mt-pal">Generace</div><div class="chips">'+R.gener.map(function(k){
       var sk=R.vozy.filter(function(x){return genKlic(x,R.zn)===k});
-      var popis=(jePSA(R.zn)||jeOpel(R.zn)||jeRenault(R.zn)||jeMG(R.zn)||jeFiat(R.zn)||jeKorea(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
+      var popis=(jePSA(R.zn)||jeOpel(R.zn)||jeRenault(R.zn)||jeMG(R.zn)||jeFiat(R.zn)||jeKorea(R.zn)||jeFord(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
         :(R.model+(rimskaZModelu(sk[0].model)?' '+rimskaZModelu(sk[0].model):''));
       return '<button class="chip'+(R.gen===k?' on':'')+'" onclick="zvolGen(\''+k+'\')">'+
         esc(popis)+' <span style="font-weight:400">'+rozsahLet(sk)+'</span></button>';
@@ -2479,11 +2718,12 @@ function rucniMotorIdx(i,el){
   var rozlisuje=false;
   Object.keys(vuz.filtry).forEach(function(k){
     vuz.filtry[k].forEach(function(f){if(f.kody&&f.kody.length)rozlisuje=true})});
-  var kk=jeKorea(zn)?korKody(vuz):
+  var kk=jeFord(zn)?fordKody(vuz):
+         (jeKorea(zn)?korKody(vuz):
          (jeFiat(zn)?fiatKody(vuz):
          (jeMG(zn)?mgKody(vuz):
          (jeRenault(zn)?renKody(vuz):
-         (jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice())))));
+         (jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice()))))));
   V={vozy:[vuz],kod:kk.length===1?kk[0]:null,
      chipy:(kk.length>1&&rozlisuje)?kk:null,
      karty:[{rozbal:{},kab:'zakladni',volba:{}}],vice:false,rucni:true};
@@ -2553,10 +2793,11 @@ function hlavickaRegistr(kod,kw,zdroj){
       // (Thalia 2005 → 2003, Duster 2012 → 2004, Punto 199 má "0").
       // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
       radek('Modelový rok (z VIN)',
-        (AKT_REZIM==='renault'||AKT_REZIM==='fiat'||AKT_REZIM==='korea')?'':
+        (AKT_REZIM==='renault'||AKT_REZIM==='fiat'||AKT_REZIM==='korea'||
+         AKT_REZIM==='ford')?'':
         (AKT_REZIM==='mg'?mgRokZVin(stav.vin):rokZVin(stav.vin)))+
       radek('Rok 1. registrace',
-        (AKT_REZIM==='fiat'||AKT_REZIM==='korea')?(stav.rok||''):'')+
+        (AKT_REZIM==='fiat'||AKT_REZIM==='korea'||AKT_REZIM==='ford')?(stav.rok||''):'')+
       radek('Výkon',kw?kw+' kW':'')+
       radek('Objem',stav.objem?stav.objem+' cm³':'')+
       radek('Palivo',stav.palivo)+
@@ -2593,6 +2834,7 @@ function pasujici(fl,kod){
     if(AKT_REZIM==='mg') return mgKodySeznam(f.kody).indexOf(kod)>=0;
     if(AKT_REZIM==='fiat') return fiatKodySeznam(f.kody).indexOf(kod)>=0;
     if(AKT_REZIM==='korea') return korKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='ford') return fordKodySeznam(f.kody).indexOf(kod)>=0;
     return f.kody.indexOf(kod)>=0;
   });
 }
