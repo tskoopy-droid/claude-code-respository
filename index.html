@@ -1,0 +1,3275 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Filtry podle VIN</title>
+<script>
+// ── Konfigurace ─ stejný endpoint jako ostrá verze ─────────────
+window.GAS_URL = 'https://script.google.com/macros/s/AKfycbztDbYh8df3_sE_PLFkg75VCxmw9gaDfraj72ulveGb4StgJO_ZdwHJdK2m6fXvRF5pNg/exec';
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#2563eb;--blue-dark:#1d4ed8;--blue-light:#eff6ff;--blue-mid:#bfdbfe;
+  --text:#1e293b;--text-muted:#64748b;--border:#e2e8f0;
+  --bg:#f8fafc;--white:#fff;--green:#16a34a;--green-light:#f0fdf4;--green-border:#bbf7d0;
+  --red:#ef4444;--amber:#b45309;--amber-light:#fffbeb;--amber-border:#fde68a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:22px 16px 70px}
+h1{font-size:20px;margin:0 0 4px;font-weight:700}
+.sub{color:var(--text-muted);font-size:13px;margin-bottom:20px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
+.section-title{font-weight:700;font-size:15px;margin-bottom:4px}
+.section-sub{color:var(--text-muted);font-size:13px;margin-bottom:14px}
+.vin-input{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:14px;
+  font-family:Inter,sans-serif;font-size:15px;font-weight:600;color:var(--text);
+  letter-spacing:.06em;text-transform:uppercase;outline:none;transition:border-color .2s}
+.vin-input:focus{border-color:var(--blue)}
+.vin-input::placeholder{color:#cbd5e1;font-weight:400;letter-spacing:.02em;font-size:13px;text-transform:none}
+.btn{width:100%;margin-top:12px;padding:15px;background:var(--blue);border:none;border-radius:14px;
+  font-family:Inter,sans-serif;font-weight:700;font-size:16px;color:#fff;cursor:pointer}
+.btn:active{background:var(--blue-dark)}
+.btn:disabled{background:#cbd5e1;cursor:not-allowed}
+select{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;
+  font-family:Inter,sans-serif;font-size:14.5px;font-weight:600;color:var(--text);
+  background:var(--white);outline:none;margin-bottom:10px}
+select:focus{border-color:var(--blue)}
+select:disabled{color:#cbd5e1;background:var(--bg)}
+.box{padding:12px 14px;border-radius:12px;font-size:13.5px;line-height:1.55;margin-bottom:14px;display:none}
+.box.visible{display:block}
+.box.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+.box.warn{background:var(--amber-light);border:1px solid var(--amber-border);color:var(--amber)}
+.auto-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:12px}
+.auto-name{font-weight:700;font-size:17px}
+.auto-logo{height:26px;max-width:70px;width:auto;object-fit:contain;object-position:left center;
+  display:block;margin-right:2px}
+.auto-meta{color:var(--text-muted);font-size:13px}
+.tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:7px;background:var(--blue-light);color:var(--blue)}
+.tag.q{background:var(--amber-light);color:var(--amber)}
+.rows{border-top:1px solid var(--border);padding-top:12px;display:grid;gap:6px}
+.row{display:flex;justify-content:space-between;font-size:13.5px;gap:12px}
+.row span:first-child{color:var(--text-muted)}
+.row span:last-child{font-weight:600;text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.chip{padding:7px 14px;border-radius:10px;border:2px solid var(--border);background:var(--white);
+  font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer}
+.chip.on{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.zn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:10px;margin-bottom:4px}
+.zn-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  padding:14px 8px;border:2px solid var(--border);border-radius:14px;background:var(--white);
+  cursor:pointer;font-family:Inter,sans-serif}
+.zn-tile:active,.zn-tile.on{border-color:var(--blue);background:var(--blue-light)}
+.zn-tile img{height:34px;width:auto;max-width:100%;object-fit:contain}
+.zn-tile .nm{font-size:12.5px;font-weight:700;color:var(--text-muted)}
+.zn-tile.on .nm{color:var(--blue)}
+.zn-fallback{height:34px;display:flex;align-items:center;font-size:15px;font-weight:700;color:var(--text-muted)}
+.mt-gen{font-weight:700;font-size:14px;margin:14px 0 2px}
+.mt-pal{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);
+  font-weight:700;margin:10px 0 6px}
+.mt-list{display:grid;gap:7px}
+.mt-row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;background:var(--white);
+  cursor:pointer;text-align:left;font-family:Inter,sans-serif;width:100%}
+.mt-row:active{border-color:var(--blue);background:var(--blue-light)}
+.mt-row.on{border-color:var(--blue);background:var(--blue-light)}
+.mt-motor{font-weight:700;font-size:14.5px}
+.mt-roky{color:var(--text-muted);font-size:12.5px;font-weight:400}
+.mt-kody{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;
+  color:var(--blue);background:var(--blue-light);border-radius:7px;padding:3px 8px;white-space:nowrap}
+.vin-cam-btn{width:100%;margin-bottom:12px;padding:14px 18px;background:var(--blue-light);
+  border:2px solid var(--blue-mid);border-radius:14px;color:var(--blue);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:Inter,sans-serif;font-weight:700;font-size:15px}
+.vin-cam-btn:active{background:var(--blue-mid)}
+.vin-cam-btn svg{width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cam-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;
+  align-items:flex-end;justify-content:center}
+.cam-modal-overlay.open{display:flex}
+.cam-modal{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px}
+.cam-modal-title{font-size:16px;font-weight:700;margin-bottom:16px;text-align:center}
+.cam-option{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;
+  border:2px solid var(--border);margin-bottom:10px;cursor:pointer;font-family:Inter,sans-serif;
+  font-size:15px;font-weight:600;color:var(--text);background:#fff;width:100%}
+.cam-option:active{background:#f1f5f9}
+.cam-option svg{width:24px;height:24px;stroke:var(--blue);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cam-cancel{width:100%;padding:14px;border:none;background:none;font-family:Inter,sans-serif;
+  font-size:15px;font-weight:600;color:var(--text-muted);cursor:pointer}
+@keyframes vinSpin{to{transform:rotate(360deg)}}
+.olej-box{border:1px solid var(--green-border);background:var(--green-light);border-radius:12px;
+  padding:12px 14px;margin-top:14px}
+.olej-logo{height:44px;max-width:220px;width:auto;object-fit:contain;object-position:left center;
+  display:block;margin-bottom:8px}
+.olej-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
+.olej-name{font-weight:700;font-size:14.5px}
+.olej-price{font-size:17px;font-weight:700;white-space:nowrap}
+.olej-meta{color:var(--text-muted);font-size:12.5px}
+.olej-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+.olej-list{display:grid;gap:6px;margin-top:8px}
+.filters{display:grid;grid-template-columns:1fr;gap:11px;margin-top:14px}
+.f{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--bg)}
+.f.kab{border-color:var(--blue-mid);background:var(--blue-light)}
+.f-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.f-name{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700}
+.f-price{font-size:17px;font-weight:700;white-space:nowrap}
+.f-brand{font-size:12px;font-weight:700;color:var(--text);margin-top:6px;
+  display:flex;align-items:flex-end;flex-wrap:wrap;gap:6px;min-height:20px}
+.f-logo{height:18px;max-width:82px;width:auto;object-fit:contain;object-position:left center;display:block}
+/* Logo značky filtru na vlastním řádku, pod ním název značky a číslo
+   dílu v jedné řádce. Samotné logo nestačí — u některých značek
+   (Blue Print) není z obrázku poznat, o koho jde. */
+.zn-blok{display:block}
+.zn-blok .f-logo{height:20px;max-width:90px;margin-bottom:2px}
+.zn-nazev{font-size:11px;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;color:var(--text-muted);line-height:1.1}
+.zn-dil{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  font-weight:600;color:var(--text);letter-spacing:0;text-transform:none}
+.f-part{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--text-muted);margin:2px 0 8px;word-break:break-all}
+.f-link{font-size:12.5px;color:var(--blue);text-decoration:none;font-weight:600}
+.f-link:hover{text-decoration:underline}
+.f.none{opacity:.6}.f.none .f-price{font-size:13px;color:var(--text-muted)}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;margin:6px 4px 0 0;
+  background:var(--amber-light);color:var(--amber);font-weight:700;border:1px solid var(--amber-border)}
+.badge.b{background:var(--blue-light);color:var(--blue);border-color:var(--blue-mid)}
+.vars{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.var-btn{padding:5px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);
+  font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);cursor:pointer}
+.var-btn.on{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.more{margin-top:8px}
+.more-btn{background:none;border:none;color:var(--blue);font:inherit;font-size:12.5px;font-weight:700;
+  cursor:pointer;padding:0;text-decoration:underline}
+.more-list{margin-top:8px;display:grid;gap:6px}
+.alt-row{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  padding:0 6px 0 0;border:1px solid var(--border);border-radius:8px;background:var(--white)}
+.alt-pick{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;
+  padding:9px 10px;background:none;border:none;border-radius:8px;cursor:pointer;
+  font-family:Inter,sans-serif;font-size:12.5px;text-align:left}
+.alt-pick:active{background:var(--blue-light)}
+.alt-zn{flex:0 0 auto;display:flex;align-items:center;min-width:70px}
+.alt-zn .f-logo{height:17px;max-width:70px}
+.alt-row .p{font-family:ui-monospace,Menlo,monospace;color:var(--text-muted);
+  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
+.alt-cena{margin-left:auto;white-space:nowrap;font-weight:700;font-size:13.5px;padding-left:6px}
+.alt-link{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:8px;color:var(--blue);text-decoration:none;
+  font-size:19px;font-weight:700;line-height:1}
+.alt-link:active{background:var(--blue-light)}
+.total{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:baseline}
+.total b{font-size:20px;font-weight:700}
+.foot{margin-top:20px;font-size:12px;color:var(--text-muted);line-height:1.7}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Filtry podle VIN</h1>
+  <div class="sub">Ceny Bosch / MAHLE / Febi z Pegasu · klasické dodání · ověřuj před objednávkou</div>
+
+  <div class="card">
+    <div class="section-title">Zadejte VIN vozidla</div>
+    <div class="section-sub">Načte se z registru vozidel — značka, model, kód motoru a výkon.</div>
+    <button class="vin-cam-btn" id="camBtn" onclick="otevriVyberFotky()">
+      <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Skenovat VIN
+    </button>
+    <input type="text" class="vin-input" id="vinInput" maxlength="17"
+      placeholder="např. TMBBH25J383087742" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn" id="vinBtn" onclick="nactiVin()">Načíst filtry</button>
+
+    <div class="cam-modal-overlay" id="camModal" onclick="zavriModal(event)">
+      <div class="cam-modal">
+        <div class="cam-modal-title">Naskenovat VIN</div>
+        <button class="cam-option" onclick="spustiFotoaparat()">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Fotoaparát
+        </button>
+        <button class="cam-option" onclick="vyberZGalerie()">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Galerie
+        </button>
+        <button class="cam-cancel" onclick="zavriCamModal()">Zrušit</button>
+      </div>
+    </div>
+    <input type="file" id="inputFotoaparat" accept="image/*" capture="environment" style="display:none" onchange="zpracujFotku(this)">
+    <input type="file" id="inputGalerie" accept="image/*" style="display:none" onchange="zpracujFotku(this)">
+  </div>
+
+  <div class="card" id="cardRucni">
+    <div class="section-title">…nebo vyberte ručně</div>
+    <div class="section-sub">Když VIN nesedí nebo vůz není v registru.</div>
+    <div class="zn-grid" id="znGrid"></div>
+    <select id="selMo" onchange="rucniModel()" disabled><option value="">Model…</option></select>
+    <div id="mtList"></div>
+  </div>
+
+  <div class="box err" id="errBox"></div>
+  <div class="box warn" id="warnBox"></div>
+  <div id="out"></div>
+
+  <div class="foot">
+    Pořadí značek: <b>Bosch → MAHLE → Febi</b>, u MG <b>Bosch → Blue Print → Febi</b>
+    (nejlevnější v rámci značky). Cena = klasické dodání.<br>
+    Kód motoru se ověřuje dvoustupňově: skupina motorizace → kódy u konkrétního dílu.<br>
+    Kabinový filtr může mít varianty základní / uhlíkový / premium — přepínač u karty.
+  </div>
+</div>
+
+<script>
+// ── Datové soubory po značkách — nový formát (scraper v4+) ────
+// logo: soubor vedle stránky (logoskoda.png…). Když chybí,
+// dlaždice se vykreslí jen s názvem — nic se nerozbije.
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  TABULKA ZNAČEK — jediné místo, kde se značky nastavují.   ║
+// ║  Nová značka = přidat řádek + nahrát JSON vedle stránky.   ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ f     = datový soubor                                     ║
+// ║ logo  = obrázek dlaždice (chybí-li, ukáže se jen název)    ║
+// ║ nazev = jak značku píše registr vozidel                    ║
+// ║ rezim = kterou párovací logikou se řídí:                   ║
+// ║   'vag' = původní, ověřená. Kód je holý (ALH), model čistý ║
+// ║           (FABIA II). NESAHAT — chová se přesně jako dřív. ║
+// ║   'psa' = kód se závorkou 9HP (DV6DTED), model v Pegasím   ║
+// ║           tvaru C4 II (NC_) od 2009, navíc filtr podle     ║
+// ║           roku a slučování karoserií.                      ║
+// ║   'opel'= kód je v poli TYP MOTORU (ne ve Variantě), píše  ║
+// ║           se s mezerami (Z 16 XE) nebo se závorkou u       ║
+// ║           stellantisových (F 12 XHT (EB2ADTS)). Kód není   ║
+// ║           spolehlivý klíč — u přeznačkovaných modelů       ║
+// ║           (Antara, Agila, Karl, Combo D) píše registr jiné ║
+// ║           označení než Pegas, proto se páruje modelem,     ║
+// ║           objemem, palivem, výkonem a rokem a kód je jen   ║
+// ║           potvrzení, když sedne.                           ║
+// ║ 'renault'= klíčem je VARIANTA, která nese typový kód vozu  ║
+// ║           (LB0P, KMR2, HSD8T) a sedí na závorku v názvu    ║
+// ║           modelu — THALIA I (LB_). Z Typu motoru je        ║
+// ║           použitelná jen rodina (K9K F 7 → K9K), protože   ║
+// ║           registr nikdy nedá Pegasí příponu (K9K 636).     ║
+// ║           Platí i pro Dacii — stejná data, stejná pravidla.║
+// ║   'mg'  = jako Opel má kód v poli TYP MOTORU (15S4C), ale  ║
+// ║           sedí PŘESNĚ na katalog — přeznačkování se u SAIC ║
+// ║           neděje. Varianta (AB1PA) je bezobsažná a Typ     ║
+// ║           (/ SZS1) na závorku v názvu NESEDÍ (katalog má   ║
+// ║           AZS1), takže platforma se nepoužívá. Obchodní    ║
+// ║           označení nese značku ("MG ZS") — ořezává se.     ║
+// ║  'fiat' = registr NEDÁVÁ kód motoru vůbec. V poli Typ je   ║
+// ║           TROJČÍSLÍ typu vozu (199, 188, 169, 223) a totéž ║
+// ║           je ve VINu na 4.–6. znaku. Sedí na závorku       ║
+// ║           v názvu — PUNTO (188_). Motorizaci pak určí      ║
+// ║           palivo, objem a výkon.                           ║
+// ║ 'korea'= Kia a Hyundai. Kód motoru je v poli TYP MOTORU    ║
+// ║           (G4FA, G4FD, D4FB) a sedí PŘESNĚ na katalog, ale ║
+// ║           sám nestačí — G4FA je na 18 vozech. Model určí   ║
+// ║           obchodní označení + platforma z pole Typ         ║
+// ║           (ED, JD, CD) proti závorce v názvu.              ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ priorita = pořadí značek filtrů, když má značka jiné než   ║
+// ║           výchozí Bosch → MAHLE → Febi. MG a korejci mají  ║
+// ║           místo MAHLE Blue Print.                          ║
+// ╚═══════════════════════════════════════════════════════════╝
+var ZNACKY={
+ 'Škoda'  :{f:'skoda.json',     logo:'logoskoda.png',   nazev:/SKODA|ŠKODA/,      rezim:'vag'},
+ 'VW'     :{f:'volkswagen.json',logo:'logovw.png',      nazev:/VOLKSWAGEN|^VW$/,  rezim:'vag'},
+ 'Seat'   :{f:'seat.json',      logo:'logoseat.png',    nazev:/SEAT/,             rezim:'vag'},
+ 'Audi'   :{f:'audi.json',      logo:'logoaudi.png',    nazev:/AUDI/,             rezim:'vag'},
+ 'Peugeot':{f:'peugeot.json',   logo:'logopeugeot.png', nazev:/PEUGEOT/,          rezim:'psa'},
+ 'Citroën':{f:'citroen.json',   logo:'logocitroen.png', nazev:/CITRO/,            rezim:'psa'},
+ 'Opel'   :{f:'opel.json',      logo:'logoopel.png',    nazev:/OPEL|VAUXHALL/,    rezim:'opel'},
+ 'Renault':{f:'renault.json',   logo:'logorenault.png', nazev:/RENAULT/,          rezim:'renault'},
+ 'Dacia'  :{f:'dacia.json',     logo:'logodacia.png',   nazev:/DACIA/,            rezim:'renault'},
+ 'MG'     :{f:'mg.json',        logo:'logomg.png',      nazev:/^MG\b|MORRIS GARAGES/, rezim:'mg',
+            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']},
+ 'Fiat'   :{f:'fiat.json',      logo:'logofiat.png',    nazev:/FIAT/,             rezim:'fiat'},
+ 'Kia'    :{f:'kia.json',       logo:'logokia.png',     nazev:/\bKIA\b/,          rezim:'korea',
+            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']},
+ 'Hyundai':{f:'hyundai.json',   logo:'logohyundai.png', nazev:/HYUNDAI/,          rezim:'korea',
+            priorita:['BOSCH','BLUE PRINT','FEBI BILSTEIN']},
+ 'Ford'   :{f:'ford.json',      logo:'logoford.png',    nazev:/FORD/,             rezim:'ford'},
+ 'Toyota' :{f:'toyota.json',    logo:'logotoyota.png',  nazev:/TOYOTA/,           rezim:'toyota'}
+};
+var SOUBORY=ZNACKY;                      // starý název, ať nic jiného nepadá
+function jePSA(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='psa' }
+function jeOpel(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='opel' }
+function jeRenault(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='renault' }
+function jeMG(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='mg' }
+function jeFiat(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='fiat' }
+function jeKorea(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='korea' }
+function jeFord(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='ford' }
+function jeToyota(zn){ return !!ZNACKY[zn] && ZNACKY[zn].rezim==='toyota' }
+// Režim právě zobrazované značky. Nastavuje se na jednom místě
+// (nastavRezim) a čte ho jen pasujici() — VAG i PSA se chovají
+// přesně jako dřív, protože pro ně je hodnota 'vag' / 'psa'.
+var AKT_REZIM='vag';
+// Pořadí značek filtrů právě zobrazované značky vozu. Výchozí je
+// PRIORITA (Bosch → MAHLE → Febi) a platí pro všechny značky, které
+// si v tabulce nic nenastaví — jejich chování se tím nemění.
+var AKT_PRIORITA=null;
+function prio(){ return AKT_PRIORITA||PRIORITA }
+function nastavRezim(zn){
+  AKT_REZIM=(ZNACKY[zn]&&ZNACKY[zn].rezim)||'vag';
+  AKT_PRIORITA=(ZNACKY[zn]&&ZNACKY[zn].priorita)||null;
+}
+var KATALOG={};              // načtená data: značka -> {vozy:[...]}
+// ID značek v Pegasu — parametr filter je base64 z
+// "BrandProductFieldsFilter%5B0%5D=ID". Ověřeno na reálných URL.
+var ZN_ID={'BOSCH':2025,'MAHLE':3081,'FEBI BILSTEIN':3063,'BLUE PRINT':3072};
+var BASE='https://pegasdily.cz/autodily-podle-typu/filtr/';
+var CAT={olejovy:['Olejový','olejovy-filtr'],vzduchovy:['Vzduchový','vzduchovy-filtr'],
+         kabinovy:['Kabinový','kabinovy-vzduchovy-filtr'],palivovy:['Palivový','palivovy-filtr']};
+var PRIORITA=['BOSCH','MAHLE','FEBI BILSTEIN'];
+// Loga značek filtrů — soubory vedle stránky. Poměr stran se řeší
+// v CSS (object-fit), takže obrázky není potřeba upravovat.
+// Když soubor chybí, zobrazí se název značky textem.
+var LOGA={'BOSCH':'logobosch.png','MAHLE':'logomahle.png','FEBI BILSTEIN':'logofebi.png',
+          'BLUE PRINT':'logoblue.png'};
+// Značka dílu: logo na vlastním řádku, pod ním "ZNAČKA číslo-dílu".
+// Když logo chybí nebo se nenačte, zůstane jen text — nic se nerozbije.
+function znackaHtml(zn,dil){
+  var l=LOGA[zn];
+  var popis='<span class="zn-nazev">'+esc(zn)+'</span>'+
+            (dil?' <span class="zn-dil">'+esc(dil)+'</span>':'');
+  if(!l) return popis;
+  return '<span class="zn-blok">'+
+    '<img class="f-logo" src="'+l+'" alt="'+esc(zn)+'" loading="lazy" '+
+      'onerror="this.style.display=\'none\'">'+
+    '<span style="display:block">'+popis+'</span></span>';
+}
+// Kompaktní varianta do seznamu "další varianty" — tam je řádek úzký,
+// takže logo a název vedle sebe.
+function znackaHtmlMaly(zn){
+  var l=LOGA[zn];
+  if(!l) return '<span class="zn-nazev">'+esc(zn)+'</span>';
+  return '<img class="f-logo" src="'+l+'" alt="'+esc(zn)+'" loading="lazy" '+
+    'onerror="this.replaceWith(document.createTextNode(\''+esc(zn)+'\'))">';
+}
+var stav={};                 // údaje z registru (VIN cesta)
+var V=null;                  // stav zobrazeného výsledku (obě cesty)
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function cena(f){return Math.min.apply(null,f.ceny)}   // nižší = klasické dodání
+// Odkaz na výpis kategorie u vozu, filtrovaný na danou značku.
+// Bez značky (nebo neznámá) → Bosch jako výchozí.
+function odkaz(slug,typ,znacka){
+  var id=ZN_ID[znacka]||ZN_ID['BOSCH'];
+  var f=btoa('BrandProductFieldsFilter%5B0%5D='+id);
+  return BASE+typ+'?filter='+f+'&v='+encodeURIComponent(slug);
+}
+function chyba(t){$('errBox').textContent=t;$('errBox').classList.add('visible')}
+function varovani(h){$('warnBox').innerHTML+=(($('warnBox').innerHTML?'<br>':'')+h);
+  $('warnBox').classList.add('visible')}
+function reset(){['errBox','warnBox'].forEach(function(i){$(i).classList.remove('visible');$(i).innerHTML=''});
+  $('out').innerHTML='';V=null;OLEJ=null;HLAVICKA=''}
+
+// ── Načtení katalogu značky (lazy, cache) ─────────────────────
+function nactiKatalog(zn){
+  if(KATALOG[zn]) return Promise.resolve(KATALOG[zn]);
+  var cfg=SOUBORY[zn];
+  if(!cfg) return Promise.reject('neznama');
+  return fetch(cfg.f).then(function(r){
+    if(!r.ok) throw new Error('http');
+    return r.json();
+  }).then(function(d){KATALOG[zn]=d;return d});
+}
+
+// Dlaždice značek — nabízí jen soubory, které reálně existují
+var zvolenaZn=null;
+Object.keys(SOUBORY).forEach(function(zn){
+  fetch(SOUBORY[zn].f,{method:'HEAD'}).then(function(r){
+    if(!r.ok) return;
+    var b=document.createElement('button');
+    b.className='zn-tile'; b.setAttribute('data-zn',zn);
+    b.onclick=function(){rucniZnacka(zn,b)};
+    var img=document.createElement('img');
+    img.src=SOUBORY[zn].logo; img.alt=zn; img.loading='lazy';
+    img.onerror=function(){ // logo chybí → jen název
+      var d=document.createElement('div'); d.className='zn-fallback'; d.textContent=zn;
+      img.replaceWith(d);
+    };
+    var nm=document.createElement('div'); nm.className='nm'; nm.textContent=zn;
+    b.appendChild(img); b.appendChild(nm);
+    $('znGrid').appendChild(b);
+  }).catch(function(){});
+});
+
+// ── Značka z registru ("ŠKODA") na název katalogu ─────────────
+function normZnacka(z){
+  var t=(z||'').toUpperCase().trim(), nalez=null;
+  Object.keys(ZNACKY).forEach(function(zn){
+    if(!nalez && ZNACKY[zn].nazev.test(t)) nalez=zn});
+  return nalez;
+}
+
+// ── Kód motoru — PŘEVZATO ze staré verze beze změny principu ──
+// Kód se z Varianty NEEXTRAHUJE regulárem (formát se liší podle
+//   značky: Škoda ABBZGX01 / ABCHYBX01, Seat BCBX0SG).
+// Místo toho se projdou kódy z katalogu a hledá se, který z nich
+// je ve Variantě obsažen. Vyhrává NEJDELŠÍ shoda — krátké kódy
+// (např. 1Z) by se jinak trefily skoro do čehokoli.
+// U VAG nese kód motoru pole Varianta — jinam se nesahá.
+function najdiKod(vozy,varianta,kodMotoru){
+  var v=(varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var k=(kodMotoru||'').toUpperCase().trim();
+  var nej=null;
+  if(v){
+    vozy.forEach(function(x){ x.kody.forEach(function(c){
+      if(c.length>=2 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c; })});
+    if(nej) return {kod:nej,zdroj:'varianta'};
+  }
+  // Fallback: kód z registru. Když sedí přesně, je to spolehlivé a nehlásí se;
+  // zkrácený (CHY → CHYB) se dopáruje prefixem a uživatel se upozorní.
+  if(k){
+    var m=null, presne=false;
+    vozy.forEach(function(x){ x.kody.forEach(function(c){
+      if(c===k){m=c;presne=true} })});
+    if(presne) return {kod:m,zdroj:'presne'};
+    vozy.forEach(function(x){ x.kody.forEach(function(c){
+      if((c.indexOf(k)===0||k.indexOf(c)===0) && (!m||c.length>m.length)) m=c; })});
+    if(m) return {kod:m,zdroj:'kodMotoru'};
+  }
+  return {kod:null,zdroj:null};
+}
+function maKod(x,kod){ return x.kody.indexOf(kod)>=0 }
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  PSA — pravidla navíc (Peugeot, Citroën)                   ║
+// ║  Nic z tohohle bloku se u VAG nepoužije.                   ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Pegas píše u PSA kód jako "9HP (DV6DTED)" = vlastní kód + rodina.
+// Hledat se musí obojí. "5FK (EP6CB)" → ["5FK","EP6CB"]
+function psaKody(x){
+  var out=[];
+  (x.kody||[]).forEach(function(k){
+    var m=/^\s*([A-Z0-9]+)\s*(?:\(([^)]+)\))?\s*$/.exec(k);
+    if(m){ out.push(m[1]); if(m[2]) out.push(m[2].replace(/[^A-Z0-9]/g,'')); }
+    else out.push(String(k).toUpperCase().replace(/[^A-Z0-9]/g,''));
+  });
+  return out.filter(function(c){return c.length>=3});
+}
+function psaMaKod(x,kod){ return psaKody(x).indexOf(kod)>=0 }
+
+// Základní název modelu — to, co vrací registr v obchodním označení.
+// "C4 II Schránky/šikmá zad (NC_) od 2009" → "C4"
+// POZOR: generace se ořezává jen I–VIII. "X" se nechává, protože
+// C4 X a C5 X jsou samostatné modely, ne desátá generace.
+var PSA_KAROSERIE=/\s+(SW|CC|BREAK|TOURER|SPACETOURER|COUPE|KUPE|CABRIO|LIMUZINA|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|VELKOPROSTOROVA|VELKOPROSTOROVÁ|KAROSERIE\/KOMBI|KOMBI|TEPEE|MULTISPACE|ORIGIN|ENTERPRISE|VAN|SUV)\b[\s\S]*$/;
+function psaZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');                          // (NC_)
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');           // "od 2009"
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');           // "2008-2021"
+  m=m.replace(PSA_KAROSERIE,'');                          // karoserie a vše za ní
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3})\b[\s\S]*$/,'');   // generace I–VIII
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Roky výroby motorizace jako [od, do]
+function psaRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+// Kód motoru z údajů registru. Pořadí: Varianta → Typ → VIN.
+// Registr plní pole nekonzistentně, proto se prochází víc zdrojů.
+function psaNajdiKod(vozy,st){
+  var zdroje=[['varianta',st.varianta],['typ',st.typ],['vin',st.vin]];
+  for(var i=0;i<zdroje.length;i++){
+    var v=String(zdroje[i][1]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!v) continue;
+    var nej=null;
+    vozy.forEach(function(x){ psaKody(x).forEach(function(c){
+      if(v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:zdroje[i][0]};
+  }
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k){
+    var m=null;
+    vozy.forEach(function(x){ psaKody(x).forEach(function(c){ if(c===k) m=c })});
+    if(m) return {kod:m,zdroj:'registr'};
+  }
+  return {kod:null,zdroj:null};
+}
+// Kabinový filtr rozhoduje, jestli se karoserie smí sloučit.
+// Motorové filtry (olej/vzduch/palivo) jsou u karoserií stejné —
+// rozdíly v nich jsou jen tím, komu Pegas kolik dílů přiřadil.
+// Kabina ale sedí na karoserii, takže když se liší JINAK než
+// podmnožinou, verze se nesmí sloučit a vybíráš ručně.
+function psaKabinaSedi(vozy,kod){
+  var sady=vozy.map(function(x){
+    var s={}; pasujici(x.filtry.kabinovy,kod).forEach(function(f){s[f.dil]=1});
+    return Object.keys(s);
+  }).filter(function(a){return a.length});
+  for(var i=0;i<sady.length;i++) for(var j=i+1;j<sady.length;j++){
+    var a=sady[i], b=sady[j];
+    var aVb=a.every(function(t){return b.indexOf(t)>=0});
+    var bVa=b.every(function(t){return a.indexOf(t)>=0});
+    if(!aVb&&!bVa) return false;
+  }
+  return true;
+}
+// Sloučení karosářských verzí do jedné nabídky. Duplicity (stejná
+// značka + číslo dílu) se zahodí, u každého dílu se pamatuje, ze
+// kterého vozu pochází — kvůli odkazu na Pegas.
+function psaSluc(vozy){
+  if(vozy.length===1) return vozy[0];
+  var z=vozy[0], out={model:z.model,motor:z.motor,vykon_kw:z.vykon_kw,roky:z.roky,
+    palivo:z.palivo,kody:z.kody,slug:z.slug,filtry:{},
+    _slouceno:vozy.map(function(x){return x.model})};
+  Object.keys(CAT).forEach(function(c){
+    var videne={}, sez=[];
+    vozy.forEach(function(x){
+      (x.filtry[c]||[]).forEach(function(f){
+        var k=f.znacka+'|'+f.dil;
+        if(videne[k]){ videne[k].ceny=videne[k].ceny.concat(f.ceny); return }
+        var kopie={}; Object.keys(f).forEach(function(p){kopie[p]=f[p]});
+        kopie.ceny=f.ceny.slice(); kopie._slug=x.slug;
+        videne[k]=kopie; sez.push(kopie);
+      });
+    });
+    out.filtry[c]=sez;
+  });
+  return out;
+}
+
+// ── Párování PSA ──────────────────────────────────────────────
+// Kód motoru → model → výkon → rok. Kód je nejsilnější klíč,
+// proto jde první. Každý krok se uplatní, jen když po něm něco
+// zbude — přísnější údaj z registru jinak výsledek vynuluje.
+function parujPSA(DATA,zn,kw){
+  var r=psaNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,r.zdroj==='registr'?'kodMotoru':null);
+  if(!r.kod){
+    varovani('Motor se nepodařilo spárovat. Varianta <b>'+esc(stav.varianta||'—')+
+      '</b>, Typ <b>'+esc(stav.typ||'—')+'</b> ani kód <b>'+esc(stav.kodMotoru||'—')+
+      '</b> nesedí na nic v katalogu '+esc(zn)+'. Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  var vyber=DATA.filter(function(x){return psaMaKod(x,r.kod)});
+
+  var mdl=String(stav.model||'').toUpperCase().replace(/\s+/g,' ').trim();
+  var modelSedi=true;
+  if(mdl){
+    var u=vyber.filter(function(x){return psaZaklad(x.model)===mdl});
+    if(!u.length) u=vyber.filter(function(x){
+      return psaZaklad(x.model).indexOf(mdl)===0 || mdl.indexOf(psaZaklad(x.model))===0});
+    if(u.length) vyber=u; else modelSedi=false;
+  }
+  var kwSedi=true;
+  if(kw){
+    var uk=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uk.length) vyber=uk; else kwSedi=false;
+  }
+  // Rok z VIN rozliší generace se stejným kódem i výkonem
+  // (208 I vs 208 II, Berlingo B9 vs K9).
+  var rok=rokZVin(stav.vin);
+  if(rok){
+    var ur=vyber.filter(function(x){var q=psaRoky(x); return rok>=q[0]&&rok<=q[1]});
+    if(ur.length) vyber=ur;
+  }
+
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se jen podle kódu motoru napříč celou značkou '+esc(zn)+'.');
+  if(!kwSedi&&kw)
+    varovani('Výkon <b>'+kw+' kW</b> z registru nesedí na žádný řádek s kódem '+
+      esc(r.kod)+'. Zobrazeny všechny výkonové verze — ověř podle objemu.');
+  if(r.zdroj==='vin')
+    varovani('Kód motoru <b>'+esc(r.kod)+'</b> se našel až ve <b>VINu</b>, ne v poli '+
+      'Varianta ani Typ. Ověř, že motorizace sedí.');
+
+  // Karoserie: motorové filtry jsou u všech verzí stejné, kabinový
+  // ale ne vždycky. Sloučí se jen tehdy, když kabina sedí.
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1 && psaKabinaSedi(vyber,r.kod)){
+    vyber=[psaSluc(vyber)]; slouceno=true;
+  }
+  if(slouceno && pocet>1)
+    varovani('Kód <b>'+esc(r.kod)+'</b> sedí na '+pocet+' karosářských verzích ('+
+      esc(vyber[0]._slouceno.join(', '))+'). Kabinový filtr je u nich stejný, '+
+      'takže jsou díly sloučené do jedné nabídky.');
+  if(!slouceno && pocet>1)
+    varovani('Zbylo '+pocet+' verzí a <b>liší se kabinovým filtrem</b> — '+
+      'vyber podle karoserie svého vozu.');
+
+  V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],r.kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  OPEL — vlastní pravidla                                   ║
+// ║  Nic z tohohle bloku se u VAG ani PSA nepoužije.           ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisech z registru:                            ║
+// ║  · Meriva 1.7 DTI → Typ motoru Y17DT, Varianta AC11        ║
+// ║  · Antara 2.2 CDTi → Typ motoru Z22D1, Varianta BH11       ║
+// ║ Varianta je u Opelu bezobsažná (AC11/BH11). Kód nese pole  ║
+// ║ TYP MOTORU — opačně než u PSA.                             ║
+// ║ Antara (GM Korea) ukazuje, že se registr a Pegas u         ║
+// ║ přeznačkovaných modelů v označení motoru rozcházejí        ║
+// ║ (Z22D1 × A 22 DMH), proto kód nesmí být jediný klíč.       ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Pegas píše opelí kódy s mezerami ("Z 16 XE"), stellantisové
+// se závorkou ("HNP (EB2ADT)", "F 12 XHT (EB2ADTS)").
+// Normalizace na holý řetězec: vlastní kód + rodina ze závorky.
+function opelKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var s=String(k).toUpperCase();
+    var m=/^([^(]*)(?:\(([^)]*)\))?/.exec(s);
+    if(!m) return;
+    var a=(m[1]||'').replace(/[^A-Z0-9]/g,'');
+    var b=(m[2]||'').replace(/[^A-Z0-9]/g,'');
+    if(a.length>=3&&out.indexOf(a)<0) out.push(a);
+    if(b.length>=3&&out.indexOf(b)<0) out.push(b);
+  });
+  return out;
+}
+function opelKody(x){ return opelKodySeznam(x.kody) }
+function opelMaKod(x,kod){ return opelKody(x).indexOf(kod)>=0 }
+
+// Karosářské a výbavové přívlastky, které registr v obchodním
+// označení nemá. Vše od nich doprava se zahazuje.
+var OPEL_KAROSERIE=/\s+(LIMUZINA|KAROSERIE\/KOMBI|KAROSERIE|KOMBI|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|SPORTS TOURER|COUNTRY TOURER|GRAND SPORT|GTC|GTS|KUPE|COUPE|KABRIOLET|CABRIO|TWINTOP|CARAVAN|CLASSIC|MONOCAB|VAN)\b[\s\S]*$/;
+// Základní název modelu z katalogu.
+// "ASTRA H KAROSERIE/KOMBI (L70) 2004-2014" → "ASTRA"
+// POZOR: ořezává se generační písmeno A–L, ale NE "X" —
+// Mokka X, Crossland X a Grandland X jsou názvy, ne generace.
+function opelZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');                        // (T98), (P17, P2QO)
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');         // "od 2021"
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');         // "2004-2014"
+  // "MOKKA / MOKKA X", "GRANDLAND / GRANDLAND X" = dva názvy téhož
+  // vozu → bere se první. Lomítko uvnitř karoserie se nedělí.
+  if(m.indexOf('/')>=0 && !/(KAROSERIE|SCHRANKY|SCHRÁNKY|TOUR)\s*\//.test(m))
+    m=m.split('/')[0];
+  m=m.replace(/\s+/g,' ').trim();                      // bez toho by koncové
+  m=m.replace(OPEL_KAROSERIE,'');                      // písmeno nešlo useknout
+  m=m.replace(/\s+TOUR(\s|$)[\s\S]*$/,'');             // COMBO E TOUR / LIFE
+  m=m.replace(/\s+FAMILY\b[\s\S]*$/,'');               // ZAFIRA FAMILY B
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+[A-L]$/,'');                         // ASTRA H, CORSA D
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Model tak, jak ho píše registr. Obchodní označení u Opelu často
+// nese i motorizaci ("MERIVA 1.7DTI 16V"), někdy generaci pomlčkou.
+function opelZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');               // "… 1.7DTI 16V"
+  m=m.replace(OPEL_KAROSERIE,'');
+  m=m.replace(/\s+[A-L]$/,'');                         // "ASTRA-H" → ASTRA
+  return m.replace(/\s+/g,' ').trim();
+}
+// Roky výroby motorizace jako [od, do]
+function opelRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+// Objem z názvu motorizace ("2.2 CDTi 4x4" → 2.2). Elektro a GSE
+// objem nemají → null a filtr se neuplatní.
+function opelObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+// Palivo z registru na hodnotu v katalogu (benzin/nafta/elektro).
+function opelPalivo(p){
+  var s=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM$|^D$/.test(s)) return 'nafta';
+  if(/BENZ|PETROL|^BA$|^B$/.test(s)) return 'benzin';
+  return null;
+}
+// Pole Typ nese u Opelu platformu ("T98", "X01MONOCAB", "T98/KOMBI")
+// nebo generaci ("A-H", "P-J", "S-D", "0G-A", "CORSA-C").
+// Pegas má platformu v závorce názvu — "ASTRA G (T98)".
+function opelPlatformaSedi(model,typ){
+  var t=String(typ||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(t.length<3) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length>=3 && t.indexOf(c)>=0) ok=true });
+  return ok;
+}
+// Generační písmeno z Typu: "A-H"→H, "P-J"→J, "S-D"→D, "0G-A"→A.
+// POZOR: je to písmeno PLATFORMY, ne modelu — Zafira B stojí na
+// platformě Astry H a má "A-H/MONOCAB". Proto jen měkké zúžení.
+function opelGeneraceZTypu(typ){
+  var t=String(typ||'').toUpperCase().split('/')[0].trim();
+  var m=/-([A-L])$/.exec(t);
+  return m?m[1]:null;
+}
+// Generační písmeno z názvu v katalogu: "ASTRA H KOMBI" → H
+function opelGeneraceKatalogu(model){
+  var s=String(model||'').toUpperCase().replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
+  var z=opelZaklad(model);
+  if(!z||s.indexOf(z)!==0) return null;
+  var m=/^([A-L])\b/.exec(s.slice(z.length).trim());
+  return m?m[1]:null;
+}
+
+// Smí se karoserie sloučit? Rozhoduje kabinový filtr, ale porovnává
+// se jen u NEJVYŠŠÍ značky, kterou mají všechny verze — to je ta,
+// která se reálně zobrazí. Rozdíly u nižších značek jsou díra
+// v přiřazení u Pegasu (Corsa D: Bosch i MAHLE stejné, jen dvě
+// febi čísla jiná), ne skutečný rozdíl mezi karoseriemi.
+function opelKabinaSedi(vozy,kod){
+  var sady=vozy.map(function(x){ return pasujici(x.filtry.kabinovy,kod) })
+               .filter(function(a){return a.length});
+  if(sady.length<2) return true;
+  var zn=null;
+  for(var p=0;p<prio().length && !zn;p++){
+    var vsude=sady.every(function(s){
+      return s.some(function(f){return f.znacka===prio()[p]})});
+    if(vsude) zn=prio()[p];
+  }
+  var klice=sady.map(function(s){
+    var o={};
+    s.forEach(function(f){ if(!zn||f.znacka===zn) o[f.dil]=1 });
+    return Object.keys(o);
+  });
+  for(var i=0;i<klice.length;i++) for(var j=i+1;j<klice.length;j++){
+    var a=klice[i], b=klice[j];
+    var aVb=a.every(function(t){return b.indexOf(t)>=0});
+    var bVa=b.every(function(t){return a.indexOf(t)>=0});
+    if(!aVb&&!bVa) return false;
+  }
+  return true;
+}
+
+// Kód motoru z registru. Pořadí: Typ motoru (tam Opel kód má) →
+// text Varianty/Typu jako záchrana. VIN se ZÁMĚRNĚ neprohledává:
+// opelí kódy v něm nejsou a krátké řetězce by se trefily náhodou.
+function opelNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k){
+    var presne=null;
+    vozy.forEach(function(x){ opelKody(x).forEach(function(c){ if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var zdroje=[['Varianta',st.varianta],['Typ',st.typ]];
+  for(var i=0;i<zdroje.length;i++){
+    var v=String(zdroje[i][1]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length<5) continue;
+    var nej=null;
+    vozy.forEach(function(x){ opelKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:zdroje[i][0]};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování Opel ─────────────────────────────────────────────
+// Model → palivo → objem → výkon → rok. Kód motoru se použije jen
+// tehdy, když v katalogu vůbec existuje; jinak by Antara vypadla.
+// Každý krok se uplatní, jen když po něm něco zbude.
+function parujOpel(DATA,zn,kw){
+  var r=opelNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return opelMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  // Registr (a podle výpisů i GAS) plní platformu nekonzistentně:
+  // "T98", "A-H/SW", "CORSA-C" chodí jednou v poli Typ, jindy
+  // v poli pro kód motoru. Bere se odkudkoli — na kód motoru se
+  // tyhle řetězce stejně netrefí.
+  var typInfo=stav.typ||'';
+  if(!opelGeneraceZTypu(typInfo) && opelGeneraceZTypu(stav.kodMotoru))
+    typInfo=stav.kodMotoru;
+  var typVse=String(stav.typ||'')+' '+String(stav.kodMotoru||'');
+
+  var mdl=opelZakladRegistr(stav.model), modelSedi=true, mdlZTypu=false;
+  // Registr u části vozů obchodní označení nevyplňuje ("NEUVEDENÉ
+  // V SEZNAMU") a model je pak jen v Typu: CORSA-C, COMBO-C.
+  if(!mdl||/NEUVEDEN/.test(String(stav.model||'').toUpperCase())){
+    mdl=opelZakladRegistr(String(typInfo||stav.kodMotoru||'').split('/')[0]);
+    mdlZTypu=!!mdl;
+  }
+  if(mdl){
+    var um=vyber.filter(function(x){return opelZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=opelZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // Platforma nebo generace z Typu — rozliší ASTRA G × H × J tam,
+  // kde obchodní označení je u všech jen "ASTRA". Měkké zúžení:
+  // když by nezbylo nic, krok se přeskočí.
+  var pl=vyber.filter(function(x){return opelPlatformaSedi(x.model,typVse)});
+  if(pl.length && pl.length<vyber.length) vyber=pl;
+  else {
+    var g=opelGeneraceZTypu(typInfo);
+    if(g){
+      var ug=vyber.filter(function(x){return opelGeneraceKatalogu(x.model)===g});
+      if(ug.length && ug.length<vyber.length) vyber=ug;
+    }
+  }
+
+  var pal=opelPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  // Objem s tolerancí 60 cm³ — katalog uvádí obchodní objem
+  // (1.3 CDTI = 1248 cm³), přesná shoda by neseděla nikdy.
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=opelObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // Rok z VIN rozliší generace bez písmene v názvu
+  // (Mokka 2012–2019 × Mokka od 2020, Grandland X × Grandland).
+  var rok=rokZVin(stav.vin);
+  if(rok){
+    var ur=vyber.filter(function(x){var q=opelRoky(x); return rok>=q[0]&&rok<=q[1]});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  // Bez kódu, bez modelu a bez výkonu nebo objemu není co párovat —
+  // hledání napříč celou značkou by vrátilo náhodný vůz.
+  if(!r.kod && (!mdl || !modelSedi) && (!kw || !cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí model, kód motoru '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Opel nepodařilo najít. Vyber ho ručně přes výběr nahoře.');
+    return;
+  }
+
+  // Kód pro filtrování položek uvnitř karty. Když ho registr nedal
+  // (nebo ho katalog nezná), převezme se z nalezených řádků.
+  var kod=r.kod, chipy=null;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ opelKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+    else if(ks.length>1){
+      var rozlisuje=false;
+      vyber.forEach(function(x){ Object.keys(x.filtry).forEach(function(c){
+        (x.filtry[c]||[]).forEach(function(f){ if(f.kody&&f.kody.length) rozlisuje=true })})});
+      if(rozlisuje) chipy=ks; else kod=ks[0];
+    }
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'U přeznačkovaných modelů (Antara, Agila, Karl, Combo D) píše registr jiné '+
+      'označení než Pegas. Vůz se dohledal podle modelu, objemu, výkonu a roku — '+
+      'ověř motorizaci.');
+  else if(r.zdroj==='Varianta'||r.zdroj==='Typ')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se našel až v poli <b>'+esc(r.zdroj)+'</b>, '+
+      'ne v Typu motoru. Ověř, že motorizace sedí.');
+  if(mdlZTypu&&modelSedi)
+    varovani('Registr nevyplnil obchodní označení — model <b>'+esc(mdl)+
+      '</b> se vzal z pole Typ (<b>'+esc(typInfo||stav.kodMotoru)+'</b>). Ověř výsledek.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model||stav.typ)+'</b> nesedí na žádný název v '+
+      'katalogu — hledalo se napříč celou značkou Opel. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci — '+
+      'filtr podle objemu se neuplatnil.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> z registru nesedí na žádný zbylý řádek. '+
+      'Zobrazeny všechny výkonové verze — ověř podle objemu.');
+
+  // Karoserie: motorové filtry jsou u verzí stejné, kabinový ne
+  // vždycky. POZOR: slučovat se smí jen karoserie TÉHOŽ vozu —
+  // stejný model, stejná generace a překrývající se roky. Bez toho
+  // by se spojila Astra J s Insignií A (sdílí motor A20DTH) nebo
+  // Astra G Classic s Astrou H.
+  var pocet=vyber.length, slouceno=false;
+  if(kod && pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=opelZaklad(x.model)+'|'+(opelGeneraceKatalogu(x.model)||'-');
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      // v rámci klíče ještě roky: Mokka 2012–2019 × Mokka od 2020
+      // mají stejný název i prázdnou generaci, ale nepřekrývají se
+      var q=opelRoky(x), kam=null;
+      skup[k].forEach(function(s,i){
+        if(kam===null){
+          var prekryv=s.some(function(y){var z=opelRoky(y);
+            return q[0]<=z[1] && z[0]<=q[1]});
+          if(prekryv) kam=i;
+        }});
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(s){
+        if(s.length>1 && opelKabinaSedi(s,kod)){ out.push(psaSluc(s)); slouceno=true }
+        else out=out.concat(s);
+      });
+    });
+    vyber=out;
+  }
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Vůz sedí na '+x._slouceno.length+' karosářských verzích ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        '). Kabinový filtr je u nich stejný, takže jsou díly sloučené do jedné nabídky.');
+    });
+  if(vyber.length>1 && !chipy)
+    varovani('Zbylo '+pocet+' verzí a <b>liší se kabinovým filtrem</b> — '+
+      'vyber podle karoserie svého vozu.');
+
+  V={vozy:vyber,kod:kod,chipy:chipy,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1&&!slouceno&&!chipy};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  RENAULT + DACIA — vlastní pravidla                        ║
+// ║  Nic z tohohle bloku se u VAG, PSA ani Opelu nepoužije.    ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisech z registru (6 Renaultů, 2 Dacie):      ║
+// ║  · Thalia  Varianta LB0P  Typ motoru K4J A 7               ║
+// ║  · Mégane  Varianta KMR2  Typ motoru K9K F 7               ║
+// ║  · Clio    Varianta CR1S  Typ motoru D4F D 7               ║
+// ║  · Duster  Varianta HSD8T Typ motoru K4MH6                 ║
+// ║ Typ motoru je vždy RODINA + index (F 7, H6), nikdy Pegasí  ║
+// ║ přípona (K9K 636). Použitelné jsou jen první tři znaky.    ║
+// ║ Varianta naproti tomu nese typový kód vozu a sedí na       ║
+// ║ závorku v názvu modelu: KMR2 → MEGANE II KOMBI (KM0/1_).   ║
+// ║ Výjimky existují (Clio IV 00KE2, Duster DHE4) — tam se     ║
+// ║ padá na obchodní označení.                                 ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Kódy motoru z katalogu: "K9K 636" → "K9K636".
+function renKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var s=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(s.length>=3&&out.indexOf(s)<0) out.push(s);
+  });
+  return out;
+}
+function renKody(x){ return renKodySeznam(x.kody) }
+// Rodina motoru = první tři znaky. Registr píše "K9K F 7" i
+// "K4MH6", takže se na oddělovač nedá spoléhat.
+function renRodina(s){
+  var t=String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  return t.length>=3?t.slice(0,3):null;
+}
+function renMaRodinu(x,rod){
+  return renKody(x).some(function(c){return c.slice(0,3)===rod});
+}
+// Typové prefixy ze závorky v názvu modelu.
+// "(KM0/1_)" → KM0,KM1 · "(BB_, CB_)" → BB,CB
+// "(B9A/M/N_)" → B9A,B9M,B9N · "(F/JP0_)" → FP0,JP0
+function renPrefixy(model){
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return [];
+  var out=[];
+  m[1].toUpperCase().split(',').forEach(function(cast){
+    var c=cast.trim().replace(/_+$/,'').trim();
+    if(!c) return;
+    if(c.indexOf('/')>=0){
+      var p=c.split('/'), zaklad=p[0].slice(0,-1), zbytek=p[p.length-1].slice(1);
+      var vars=[p[0].slice(-1)];
+      for(var i=1;i<p.length;i++) vars.push(p[i].charAt(0));
+      vars.forEach(function(z){ out.push(zaklad+z+zbytek) });
+    } else out.push(c);
+  });
+  return out.map(function(o){return o.replace(/[^A-Z0-9]/g,'')}).filter(Boolean);
+}
+// Karosářské přívlastky, které registr v obchodním označení nemá.
+// MCV, EXPRESS a PICK UP se ZÁMĚRNĚ neořezávají — to nejsou
+// karoserie téhož vozu, mají jiné díly (Logan Pick Up má vlastní).
+var REN_KAROSERIE=/\s+(GRANDTOUR|KAROSERIE\/KOMBI|KOMBI|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|GRAND COUPE|COUPE-CABRIOLET|KUPE|COUPE|CABRIOLET|LIMUZINA|SW|CC)\b[\s\S]*$/;
+function renZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(REN_KAROSERIE,'');
+  // "MODUS / GRAND MODUS", "LOGAN/STEPWAY II R" → první název
+  if(m.indexOf('/')>=0) m=m.split('/')[0];
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+R$/,'');                                  // LOGAN I R
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');          // generace
+  m=m.replace(/\s+R$/,'');
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Generace z názvu (římská číslice), jinak null.
+function renGenerace(model){
+  var s=String(model||'').toUpperCase().replace(/\([^)]*\)/g,'');
+  var m=/\s(I{1,3}|IV|V|VI{1,3}|IX|X)(\s+R)?(\s|$)/.exec(s);
+  return m?m[1]:null;
+}
+function renRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function renObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+// Palivo: registr píše BA, NM, "BA + LPG", "Benzín + LPG".
+// LPG a Ethanol jsou v katalogu vedené jako benzin.
+function renPalivo(p){
+  var s=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(s)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|ETHANOL/.test(s)) return 'benzin';
+  return null;
+}
+// Smí se řádky sloučit? Porovnává se nejlevnější díl NEJVYŠŠÍ
+// značky, kterou mají všechny řádky — stejný princip jako u Opelu.
+// Porovnávat napříč značkami nejde: Pegas přiřazuje řídce, takže
+// jednomu řádku Bosch chybí a vyhraje MAHLE, i když jde o tentýž
+// díl (Clio III Hi-Flex). Kódy se pro tenhle test neuplatňují,
+// položky patří k vozu tak jako tak.
+function renDilySedi(vozy){
+  var kats=Object.keys(CAT);
+  for(var i=0;i<kats.length;i++){
+    var kat=kats[i], zn=null;
+    for(var p=0;p<prio().length && !zn;p++){
+      var vsude=vozy.every(function(x){
+        return (x.filtry[kat]||[]).some(function(f){return f.znacka===prio()[p]})});
+      if(vsude) zn=prio()[p];
+    }
+    if(!zn){
+      // žádnou značku nemají všichni → kategorie se nedá porovnat.
+      // Když ji některý řádek má a jiný ne, sloučit se nesmí.
+      var kdo=vozy.map(function(x){return (x.filtry[kat]||[]).length>0});
+      if(kdo.some(function(a){return a!==kdo[0]})) return false;
+      continue;
+    }
+    var dil=null;
+    for(var j=0;j<vozy.length;j++){
+      var c=(vozy[j].filtry[kat]||[]).filter(function(f){return f.znacka===zn});
+      c.sort(function(a,b){return cena(a)-cena(b)});
+      if(dil===null) dil=c[0].dil;
+      else if(c[0].dil!==dil) return false;
+    }
+  }
+  return true;
+}
+
+// ── Párování Renault / Dacia ──────────────────────────────────
+// Varianta → (nebo obchodní označení) → rodina motoru → palivo →
+// objem → výkon → rok. Každý krok se uplatní, jen když po něm
+// něco zbude.
+function parujRenault(DATA,zn,kw){
+  var rodina=renRodina(stav.kodMotoru);
+  hlavickaRegistr(rodina,kw,null);
+
+  var vyber=DATA, zdrojModelu=null;
+
+  // 1) Varianta proti typovým prefixům. Zkouší se 4, 3 a 2 znaky —
+  //    registr píše KMR2 tam, kde katalog má KM0/1.
+  var varn=String(stav.varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(varn.length>=2){
+    for(var L=4;L>=2 && !zdrojModelu;L--){
+      var u=DATA.filter(function(x){
+        return renPrefixy(x.model).some(function(q){
+          return q.length>=L && q.slice(0,L)===varn.slice(0,L)})});
+      if(u.length){ vyber=u; zdrojModelu='varianta'; }
+    }
+  }
+  // 2) Když varianta nesedne, obchodní označení.
+  var mdl=String(stav.model||'').toUpperCase().replace(/\s+/g,' ').trim();
+  if(/NEUVEDEN/.test(mdl)) mdl='';
+  if(!zdrojModelu && mdl){
+    var um=vyber.filter(function(x){return renZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=renZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length){ vyber=um; zdrojModelu='model'; }
+  }
+
+  // 3) Rodina motoru
+  var rodinaSedla=false;
+  if(rodina){
+    var ur=vyber.filter(function(x){return renMaRodinu(x,rodina)});
+    if(ur.length){ vyber=ur; rodinaSedla=true; }
+  }
+
+  var pal=renPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=renObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // POZOR: rok z VIN se u Renaultu NEPOUŽÍVÁ. Renault nedodržuje
+  // ISO 3779 v 10. znaku — Thalia z roku 2005 z něj vyjde jako
+  // 2003, Duster z 2012 jako 2004. Generace rozliší varianta.
+  vyber=preferPohon(vyber,stav.pohon);
+
+  if(!zdrojModelu && !rodinaSedla && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů — varianta ani obchodní '+
+      'označení nesedí na nic v katalogu '+esc(zn)+' a chybí výkon nebo objem. '+
+      'Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu '+esc(zn)+' nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  // Slučování: stejný model, stejná generace, překrývající se roky
+  // A shodné díly ve všech čtyřech kategoriích. U Renaultu to spojí
+  // i palivové mutace (Ethanol, Hi-Flex, BiFuel) a 4x4 verze —
+  // ověřeno, že mají stejné filtry jako základní provedení.
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=renZaklad(x.model)+'|'+(renGenerace(x.model)||'-');
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=renRoky(x), kam=null;
+      skup[k].forEach(function(s,i){
+        if(kam===null && s.some(function(y){var z=renRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(s){
+        if(s.length>1 && renDilySedi(s)){ out.push(psaSluc(s)); slouceno=true }
+        else out=out.concat(s);
+      });
+    });
+    vyber=out;
+  }
+
+  // Kód pro filtrování položek. Registr plnou příponu nikdy nedá,
+  // takže se sbírají kódy z nalezených řádků. Když se podle nich
+  // liší nabízený díl, ukáže se výběr — ale nabídka se NEBLOKUJE,
+  // protože zákazník příponu z technického průkazu nezjistí.
+  var ks=[];
+  vyber.forEach(function(x){ renKody(x).forEach(function(c){
+    if(ks.indexOf(c)<0) ks.push(c)})});
+  var meniVysledek=false;
+  if(ks.length>1){
+    vyber.forEach(function(x){
+      Object.keys(CAT).forEach(function(kat){
+        var vys={};
+        ks.forEach(function(kod){
+          var it=(x.filtry[kat]||[]).filter(function(f){
+            return !f.kody||!f.kody.length||renKodySeznam(f.kody).indexOf(kod)>=0});
+          var w=vitez(it); vys[w?w.dil:'-']=1;
+        });
+        if(Object.keys(vys).length>1) meniVysledek=true;
+      });
+    });
+  }
+  var kod=(ks.length===1)?ks[0]:null;
+  var chipy=meniVysledek?ks:null;
+
+  if(!rodina && stav.kodMotoru)
+    varovani('Z Typu motoru <b>'+esc(stav.kodMotoru)+'</b> nešla určit rodina.');
+  else if(rodina && !rodinaSedla)
+    varovani('Rodina motoru <b>'+esc(rodina)+'</b> z registru není u tohoto vozu '+
+      'v katalogu. Vůz se dohledal podle objemu, výkonu a roku — ověř motorizaci.');
+  if(zdrojModelu==='model')
+    varovani('Varianta <b>'+esc(stav.varianta||'—')+'</b> nesedí na žádný typový kód '+
+      'v katalogu, hledalo se podle obchodního označení <b>'+esc(stav.model)+'</b>.');
+  if(!zdrojModelu)
+    varovani('Ani varianta, ani obchodní označení nesedí na model v katalogu — '+
+      'hledalo se napříč celou značkou '+esc(zn)+'. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — vyber to svoje.');
+  if(chipy)
+    varovani('Díly se u tohoto vozu liší podle <b>přípony kódu motoru</b> '+
+      '(např. K9K 636 × K9K 836). Registr příponu nedává, zobrazená je '+
+      'nejlevnější varianta — přípona je vyražená na bloku motoru.');
+
+  V={vozy:vyber,kod:kod,chipy:chipy,nezavazne:!!chipy,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  TOYOTA — vlastní pravidla                                 ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Kódy motoru mají u Toyoty vlastní tvar: 1NZ-FE, 2ZR-FAE,   ║
+// ║ 1AD-FTV — začínají číslicí a mají pomlčku. V katalogu      ║
+// ║ jich je 373 s pomlčkou a 38 holých; pár má i rodinu        ║
+// ║ v závorce: "4WZ-FTV (DW10FDDU)" — to jsou přeznačkované    ║
+// ║ PSA motory v Proace.                                       ║
+// ║ Registr pomlčku vynechává nebo píše jinak, proto se        ║
+// ║ porovnává po odstranění všeho kromě písmen a číslic.       ║
+// ║ Model: obchodní označení je čisté (YARIS, COROLLA, RAV4),  ║
+// ║ ale POZOR — katalog má "RAV 4" s mezerou. Sjednocuje se    ║
+// ║ stejně jako u korejců (IX 35 → IX35).                      ║
+// ║ Rok: 1. registrace, VIN u Toyoty modelový rok nenese.      ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// "1NZ-FE" → 1NZFE, "4WZ-FTV (DW10FDDU)" → 4WZFTV + DW10FDDU
+function toyKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var m=/^\s*([A-Z0-9-]+)\s*(?:\(([^)]*)\))?\s*$/.exec(String(k).toUpperCase());
+    if(m){
+      var a=m[1].replace(/[^A-Z0-9]/g,'');
+      if(a.length>=2&&out.indexOf(a)<0) out.push(a);
+      if(m[2]){ var b=m[2].replace(/[^A-Z0-9]/g,'');
+        if(b.length>=3&&out.indexOf(b)<0) out.push(b) }
+      return;
+    }
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=2&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function toyKody(x){ return toyKodySeznam(x.kody) }
+function toyMaKod(x,kod){ return toyKody(x).indexOf(kod)>=0 }
+
+// "RAV 4" → RAV4, "GT 86" → GT86 (registr i katalog to píší různě)
+function toyNorm(s){
+  var t=String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
+  return t.replace(/\b([A-Z]{1,3})[\s-]+(\d)/g,'$1$2');
+}
+// POZOR na hranici slova: "SCHRANKY/SIKMA ZAD" končí lomítkem
+// uprostřed, takže \b za skupinou by nesedlo — proto je až na konci
+// alternativ, kde končí písmenem.
+var TOY_KAROSERIE=/\s+(SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZÁĎ|KAROSERIE\/KOMBI|SIKMA ZADNI CAST|ŠIKMÁ ZADNÍ ČÁST|STATION WAGON|SPORTSWAGON|VELKOPROSTOROVA|SKRINOVA|LIFTBACK|LIMUZINA|LIMUZÍNA|KABRIOLET|PICK-UP|VALNIK|KOMBI|CABRIO|KUPE|KUPÉ|\bVAN\b)[\s\S]*$/;
+function toyZaklad(model){
+  var m=toyNorm(model);
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+MK\s+(I{1,3}|IV|V|VI{1,3})\b[\s\S]*$/,'');   // RAV4 MK VI
+  m=m.replace(TOY_KAROSERIE,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');            // RAV4 III, PREVIA II
+  return m.replace(/\s+/g,' ').trim()||toyNorm(model);
+}
+function toyZakladRegistr(model){
+  var m=toyNorm(model);
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');
+  m=m.replace(TOY_KAROSERIE,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+function toyRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function toyObjemMotoru(motor){
+  var m=/(\d)[.,](\d+)/.exec(String(motor||''));
+  if(!m) return null;
+  return parseFloat(m[1]+'.'+m[2].slice(0,2));
+}
+function toyPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|HYBRID/.test(t)) return 'benzin';
+  return null;
+}
+// Platforma ze závorky ("AURIS (_E15_)" → E15) proti poli Typ
+function toyPlatformaSedi(model,typ){
+  var t=String(typ||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(t.length<2) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length>=2 && t.indexOf(c)>=0) ok=true });
+  return ok;
+}
+// Kód motoru z registru. POZOR: registr Toyoty kód ZKRACUJE —
+// v technickém průkazu je "1ND", zatímco katalog má "1ND-TV".
+//
+// Zkrácený kód ale často sedí na VÍC kódů katalogu:
+//   "1AZ" → 1AZ-FE (RAV4) i 1AZ-FSE (Avensis)
+// Vybrat z nich jeden (třeba nejdelší) je CHYBA — u RAV4 by to
+// vrátilo Avensis. Proto se vrací PREFIX a filtruje se podle něj;
+// který z kódů to je, se pozná až podle modelu, objemu a výkonu.
+function toyNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k.length<2) return {kod:null,prefix:null,zdroj:null};
+  var presne=null;
+  vozy.forEach(function(x){ toyKody(x).forEach(function(c){
+    if(c===k) presne=c })});
+  if(presne) return {kod:presne,prefix:k,zdroj:'presne'};
+  var kandidati=[];
+  vozy.forEach(function(x){ toyKody(x).forEach(function(c){
+    if(c.indexOf(k)===0 && kandidati.indexOf(c)<0) kandidati.push(c) })});
+  if(kandidati.length===1) return {kod:kandidati[0],prefix:k,zdroj:'zkraceny'};
+  if(kandidati.length>1) return {kod:null,prefix:k,zdroj:'zkraceny',vic:kandidati};
+  return {kod:null,prefix:null,zdroj:null};
+}
+// Má vůz kód začínající tímhle prefixem?
+function toyMaPrefix(x,prefix){
+  return toyKody(x).some(function(c){return c.indexOf(prefix)===0});
+}
+
+// ── Párování Toyota ───────────────────────────────────────────
+// Kód motoru → model → platforma → palivo → objem → výkon → rok.
+function parujToyota(DATA,zn,kw){
+  var rk=toyNajdiKod(DATA,stav);
+  var kodReg=rk.kod;
+  hlavickaRegistr(kodReg,kw,null);
+
+  var vyber=DATA;
+  if(rk.prefix){
+    // filtruje se PREFIXEM, ne konkrétním kódem — viz toyNajdiKod
+    var uk=DATA.filter(function(x){return toyMaPrefix(x,rk.prefix)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=toyZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(toyNorm(stav.model))) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return toyZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=toyZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // PLATFORMA SE U TOYOTY NEPOUŽÍVÁ. Pole Typ vypadá jako
+  // "/ E15UT - NDE180", kde NDE180 je typ vozu (Auris E180) a E15UT
+  // je homologační kód — ten se ale podřetězcem trefí i do (_E15_),
+  // což je PŘEDCHOZÍ generace. U Aurisu z roku 2014 by tak vybral
+  // model 2006–2013. Generace se rozliší rokem 1. registrace.
+  var pal=toyPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=toyObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  if(rok){
+    var ur=vyber.filter(function(x){
+      var q=toyRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  if(!kodReg && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Toyota nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=toyZaklad(x.model);
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=toyRoky(x), kam=null;
+      skup[k].forEach(function(sk,i){
+        if(kam===null && sk.some(function(y){var z=toyRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(sk){
+        if(sk.length>1 && renDilySedi(sk)){ out.push(psaSluc(sk)); slouceno=true }
+        else out=out.concat(sk);
+      });
+    });
+    vyber=out;
+  }
+
+  // Konkrétní kód se pozná až ze zúženého výsledku. Když jich
+  // ve zbylých vozech zbývá víc, nechá se prázdný a položky
+  // se nefiltrují.
+  var kod=kodReg;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ toyKody(x).forEach(function(c){
+      if(!rk.prefix || c.indexOf(rk.prefix)===0){
+        if(ks.indexOf(c)<0) ks.push(c) }})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!kodReg && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu a výkonu — ověř motorizaci.');
+  else if(rk.zdroj==='zkraceny')
+    varovani('Kód z registru <b>'+esc(stav.kodMotoru)+'</b> je zkrácený — '+
+      'registr u Toyoty píše jen začátek. Sedí na <b>'+
+      esc((rk.vic||[kodReg]).join(', '))+'</b>; '+
+      (kod?('vybráno <b>'+esc(kod)+'</b> podle modelu a výkonu. ')
+          :'rozliší až model a výkon. ')+
+      'Zkontroluj, že motorizace sedí.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se jen podle kódu motoru napříč celou značkou Toyota.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — '+
+      'rozliš podle karoserie a roku.');
+
+  V={vozy:vyber,kod:kod,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  FORD — vlastní pravidla                                   ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisu z registru (S-MAX 2.0 TDCi, 2009):       ║
+// ║  · Kód motoru je v poli TYP MOTORU — QXWA. Čtyřznakový,    ║
+// ║    holý, jako u VAG. Sedí na katalog přesně.               ║
+// ║  · Varianta kód obsahuje taky (QXWA1S) → záloha.           ║
+// ║  · Pole Typ nese platformu ("/ WA6"), Pegas ji má          ║
+// ║    v závorce: GALAXY II (WA6), S-MAX (WA6). POZOR:         ║
+// ║    platforma sama model NEURČÍ — Galaxy a S-MAX jsou       ║
+// ║    sourozenci na téže platformě. Rozhodne až obchodní      ║
+// ║    označení, které je u Fordu čisté (S-MAX, FOCUS).        ║
+// ║  · Rok: 1. registrace. U toho S-MAXu je 2009 (Rakousko)    ║
+// ║    a v ČR až 2018 — dovoz. Bere se ten první.              ║
+// ║  · Karosářské přívlastky: Turnier, kombi, limuzína,        ║
+// ║    Šikmá zadní část, Van, MK I/II/III.                     ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// "ENK6(DXRA)" → ENK6 + DXRA, "WL-T" → WLT, jinak holý kód
+function fordKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var m=/^\s*([A-Z0-9-]+)\s*(?:\(([^)]*)\))?\s*$/.exec(String(k).toUpperCase());
+    if(m){
+      var a=m[1].replace(/[^A-Z0-9]/g,'');
+      if(a.length>=3&&out.indexOf(a)<0) out.push(a);
+      if(m[2]){ var b=m[2].replace(/[^A-Z0-9]/g,'');
+        if(b.length>=3&&out.indexOf(b)<0) out.push(b) }
+      return;
+    }
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=3&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function fordKody(x){ return fordKodySeznam(x.kody) }
+function fordMaKod(x,kod){ return fordKody(x).indexOf(kod)>=0 }
+
+var FORD_KAROSERIE=/\s+(TURNIER|KAROSERIE\/KOMBI|KOMBI|LIMUZINA|LIMUZÍNA|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|SKRINOVA\/VELKOPROSTOROVA LIMUZINA|SKŘÍŇOVÁ\/VELKOPROSTOROVÁ LIMUZÍNA|VELKOPROSTOROVA|KABRIOLET|KUPE|\bVAN\b|EXPRESS)\b[\s\S]*$/;
+function fordZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+MK\s+(I{1,3}|IV|V|VI{1,3})\b[\s\S]*$/,'');   // GALAXY MK II VAN
+  m=m.replace(FORD_KAROSERIE,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');            // FOCUS II, FIESTA VII
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Obchodní označení z registru je u Fordu čisté (S-MAX, FOCUS),
+// ale pro jistotu se ořízne motorizace i karoserie.
+function fordZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');
+  m=m.replace(FORD_KAROSERIE,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+function fordRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function fordObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function fordPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|ETANOL/.test(t)) return 'benzin';
+  return null;
+}
+// Platforma ze závorky ("GALAXY II (WA6)" → WA6) proti poli Typ ("/ WA6")
+function fordPlatformaSedi(model,typ){
+  var t=String(typ||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ');
+  var slova=t.split(/\s+/).filter(function(q){return q.length>=2});
+  if(!slova.length) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length<2) return;
+    slova.forEach(function(q){ if(q===c) ok=true });
+  });
+  return ok;
+}
+// Kód motoru: pole Typ motoru, pak Varianta (obsahuje ho jako začátek).
+function fordNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k.length>=3){
+    var presne=null;
+    vozy.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var v=String(st.varianta||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(v.length>=4){
+    var nej=null;
+    vozy.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)===0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:'varianta'};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování Ford ─────────────────────────────────────────────
+// Kód motoru → obchodní označení → platforma → palivo → objem
+// → výkon → rok 1. registrace.
+function parujFord(DATA,zn,kw){
+  var r=fordNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return fordMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=fordZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(String(stav.model||'').toUpperCase())) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return fordZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=fordZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // Platforma — měkké zúžení. Galaxy a S-MAX sdílejí WA6, takže
+  // sama nerozliší; uplatní se jen když opravdu ubere.
+  var pl=vyber.filter(function(x){return fordPlatformaSedi(x.model,stav.typ)});
+  if(pl.length && pl.length<vyber.length) vyber=pl;
+
+  var pal=fordPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=fordObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  if(rok){
+    var ur=vyber.filter(function(x){
+      var q=fordRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  if(!r.kod && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Ford nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=fordZaklad(x.model);
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=fordRoky(x), kam=null;
+      skup[k].forEach(function(sk,i){
+        if(kam===null && sk.some(function(y){var z=fordRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(sk){
+        if(sk.length>1 && renDilySedi(sk)){ out.push(psaSluc(sk)); slouceno=true }
+        else out=out.concat(sk);
+      });
+    });
+    vyber=out;
+  }
+
+  var kod=r.kod;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ fordKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu a výkonu — ověř motorizaci.');
+  else if(r.zdroj==='varianta')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se vzal z <b>Varianty</b>, pole Typ motoru '+
+      'bylo prázdné. Ověř, že motorizace sedí.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se jen podle kódu motoru napříč celou značkou Ford.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — '+
+      'rozliš podle karoserie a roku.');
+
+  V={vozy:vyber,kod:kod,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  KIA + HYUNDAI — vlastní pravidla                          ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na 3 výpisech z registru (Picanto, Sportage,       ║
+// ║ Cee'd) a 15 řádcích tabulkového exportu:                   ║
+// ║  · Kód motoru je v poli TYP MOTORU a sedí PŘESNĚ:          ║
+// ║    G4HE → Picanto I, G4FD → Sportage, G4FA → Cee'd.        ║
+// ║  · Kód ale SÁM NESTAČÍ — G4FA je v katalogu na 18 vozech,  ║
+// ║    G4FD na 9. Korejci týž motor montovali napříč paletou   ║
+// ║    a Kia s Hyundai je sdílejí i mezi sebou.                ║
+// ║  · Model určí obchodní označení. POZOR NA APOSTROF:        ║
+// ║    registr píše CEE´D (akutní), Pegas CEE'D (apostrof)     ║
+// ║    a u novější generace CEED bez ničeho. Musí se           ║
+// ║    normalizovat, jinak nesedne nic.                        ║
+// ║  · Pole Typ nese platformu — "KIA CEE´D ED / ED" → ED,     ║
+// ║    "/ SLS" → SLS. Pegas ji má v závorce: CEE'D SW (ED),    ║
+// ║    SPORTAGE III (SL). Sedí ale jen někdy — Picanto má      ║
+// ║    v registru BA a v katalogu (SA) → jen měkké zúžení.     ║
+// ║  · Rok z VIN NEPOUŽÍVAT: Cee'd z 2011 by z 10. znaku       ║
+// ║    vyšel jako 1982. Bere se rok 1. registrace.             ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+function korKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    // "FE (16V)" → FE + 16V, "J3(CRDi)" → J3 + CRDI, jinak holý kód
+    var m=/^\s*([A-Z0-9]+)\s*(?:\(([^)]*)\))?\s*$/.exec(String(k).toUpperCase());
+    if(m){
+      if(m[1].length>=2) out.push(m[1]);
+      if(m[2]){ var b=m[2].replace(/[^A-Z0-9]/g,''); if(b.length>=2) out.push(b) }
+      return;
+    }
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=2) out.push(t);
+  });
+  return out;
+}
+function korKody(x){ return korKodySeznam(x.kody) }
+function korMaKod(x,kod){ return korKody(x).indexOf(kod)>=0 }
+
+// Sjednocení zápisu:
+//  · apostrofy a akutní čárky pryč — CEE´D / CEE'D / CEE'D → CEED
+//  · mezera mezi krátkou předponou a číslem pryč — registr píše
+//    "IX 35" a "I 30", Pegas "ix35" a "i30". Bez toho nesedne nic.
+//    Delší slova se nespojují, aby SANTA FE zůstalo SANTA FE.
+function korNorm(s){
+  var t=String(s||'').toUpperCase().replace(/[´`'\u2019\u2018]/g,'');
+  t=t.replace(/\s+/g,' ').trim();
+  // "IX 35" → IX35, "H-1" → H1: mezera i pomlčka mezi krátkou
+  // předponou a číslem. Registr i Pegas to píší různě.
+  t=t.replace(/\b([A-Z]{1,2})[\s-]+(\d)/g,'$1$2');
+  return t;
+}
+var KOR_KAROSERIE=/\s+(SPORTSWAGON|COMBI VAN|HATCHBACK VAN|KOMBI VAN|SIKMA ZADNI CAST|ŠIKMÁ ZADNÍ ČÁST|SKRIN\/SUV|SKŘÍŇ\/SUV|VELKOPROSTOROVA LIMUZINA|VELKOPROSTOROVÁ LIMUZÍNA|LIMUZINA|LIMUZÍNA|HATCHBACK|CARGO|KOMBI|KUPE|KOUP|\bSW\b|\bVAN\b)\b[\s\S]*$/;
+function korZaklad(model){
+  var m=korNorm(model);
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(KOR_KAROSERIE,'');
+  if(m.indexOf('/')>=0) m=m.split('/')[0];      // "EQUUS / CENTENNIAL"
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');   // generace
+  return m.replace(/\s+/g,' ').trim()||korNorm(model);
+}
+// Obchodní označení z registru — obsahuje i motorizaci ("SPORTAGE 1.6")
+function korZakladRegistr(model){
+  var m=korNorm(model).replace(/-/g,' ');
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');
+  m=m.replace(KOR_KAROSERIE,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+function korRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function korObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function korPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|ETANOL|ETHANOL/.test(t)) return 'benzin';
+  return null;
+}
+// Platforma ze závorky názvu ("CEE'D SW (ED)" → ED) proti poli Typ.
+// Registr píše "KIA CEE´D ED / ED" nebo "/ SLS".
+function korPlatformaSedi(model,typ){
+  var t=korNorm(typ).replace(/[^A-Z0-9 ]/g,' ');
+  if(!t.replace(/\s/g,'')) return false;
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return false;
+  var slova=t.split(/\s+/).filter(function(q){return q.length>=2});
+  var ok=false;
+  m[1].toUpperCase().split(/[^A-Z0-9]+/).forEach(function(c){
+    if(c.length<2) return;
+    slova.forEach(function(q){ if(q===c||q.indexOf(c)===0) ok=true });
+  });
+  return ok;
+}
+function korNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k.length<2) return null;
+  var nalez=null;
+  vozy.forEach(function(x){ korKody(x).forEach(function(c){
+    if(c===k) nalez=c })});
+  return nalez;
+}
+
+// ── Párování Kia / Hyundai ────────────────────────────────────
+// Kód motoru → model → platforma → palivo → objem → výkon → rok.
+function parujKorea(DATA,zn,kw){
+  var kodReg=korNajdiKod(DATA,stav);
+  hlavickaRegistr(kodReg,kw,null);
+
+  var vyber=DATA;
+  if(kodReg){
+    var uk=DATA.filter(function(x){return korMaKod(x,kodReg)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=korZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(korNorm(stav.model))) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return korZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=korZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  // Platforma z pole Typ — měkké zúžení, uplatní se jen když
+  // opravdu ubere (Picanto BA × katalog (SA) nesedí, a to je v pořádku).
+  var pl=vyber.filter(function(x){return korPlatformaSedi(x.model,stav.typ)});
+  if(pl.length && pl.length<vyber.length) vyber=pl;
+
+  var pal=korPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=korObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // Rok 1. registrace, ±1 (VIN u korejců modelový rok nenese).
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  if(rok){
+    var ur=vyber.filter(function(x){
+      var q=korRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    if(ur.length) vyber=ur;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  if(!kodReg && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu '+esc(zn)+' nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  // Slučování: stejný model a generace, překrývající se roky,
+  // shodné díly ve všech kategoriích.
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=korZaklad(x.model);
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=korRoky(x), kam=null;
+      skup[k].forEach(function(sk,i){
+        if(kam===null && sk.some(function(y){var z=korRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(sk){
+        if(sk.length>1 && renDilySedi(sk)){ out.push(psaSluc(sk)); slouceno=true }
+        else out=out.concat(sk);
+      });
+    });
+    vyber=out;
+  }
+
+  var kod=kodReg;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ korKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!kodReg && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu a výkonu — ověř motorizaci.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se jen podle kódu motoru napříč celou značkou '+esc(zn)+'.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší — '+
+      'kód motoru <b>'+esc(kodReg||'—')+'</b> sedí na víc verzí. '+
+      'Rozliš podle karoserie a roku.');
+
+  V={vozy:vyber,kod:kod,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  FIAT — vlastní pravidla                                   ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na 13 řádcích a 5 plných výpisech z registru:      ║
+// ║  · Kód motoru REGISTR DÁVÁ — v poli Typ motoru, ve tvaru   ║
+// ║    "188 A 4.000" nebo slepeně "188A5000", "843A1000".      ║
+// ║    Po odstranění mezer a teček sedí PŘESNĚ na katalog      ║
+// ║    ("188 A4.000" → 188A4000). Ověřeno 4/5, pátý je Punto I ║
+// ║    (176), který v katalogu není — vypadl kritériem roku.   ║
+// ║    POZOR: v tabulkovém exportu z registru tenhle sloupec   ║
+// ║    chybí, proto se dřív zdálo, že Fiat kód nedává.         ║
+// ║  · Kód sám NESTAČÍ: 188A4000 sedí na Punto i Pandu,        ║
+// ║    843A1000 na Ideu, Doblo, 500L i Punto. Fiat týž motor   ║
+// ║    montoval napříč paletou.                                ║
+// ║  · Model určí TROJČÍSLÍ typu vozu: 199 = Grande Punto,     ║
+// ║    188 = Punto II, 169 = Panda, 192 = Stilo, 350 = Idea.   ║
+// ║    Je v poli Typ ("FIAT PUNTO 1.2 65 199 / 199") a taky    ║
+// ║    ve VINu na 4.–6. znaku (ZFA**199**00000445814).         ║
+// ║    Pegas ho má v závorce názvu — PUNTO (188_).             ║
+// ║  · Obchodní označení bývá prázdné nebo "NEUVEDENÉ          ║
+// ║    V SEZNAMU" — nedá se na něj spoléhat.                   ║
+// ║ Pořadí klíčů: kód motoru → typ vozu → palivo → objem → kW. ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// "312 A2.000" → "312A2000"
+function fiatKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=4&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function fiatKody(x){ return fiatKodySeznam(x.kody) }
+
+// Trojčíslí typu vozu ze závorky: "(119_, 223_)" → ["119","223"]
+function fiatTypyVozu(model){
+  var m=/\(([^)]*)\)/.exec(model||'');
+  if(!m) return [];
+  var out=[];
+  m[1].split(',').forEach(function(c){
+    var t=c.replace(/[^0-9]/g,'');
+    if(t.length>=3&&out.indexOf(t.slice(0,3))<0) out.push(t.slice(0,3));
+  });
+  return out;
+}
+// Trojčíslí z registru: pole Typ, jinak Varianta, jinak VIN 4.–6. znak.
+// Pole bývá čisté ("199"), ale i slepené ("188BXA1A00F") nebo plné
+// balastu ("1.9 JTD 115 192BXE1A09" — tam je typ až na konci).
+// Proto se NEBERE prvních pár číslic, ale hledají se VŠECHNA
+// trojčíslí v textu a vezme se to, které katalog zná jako typ vozu.
+function fiatTypZRegistru(st,platne){
+  function najdi(text){
+    var t=String(text||'').toUpperCase();
+    var kand=[], m, re=/(\d{3})/g;
+    while((m=re.exec(t))!==null){
+      if(kand.indexOf(m[1])<0) kand.push(m[1]);
+      re.lastIndex=m.index+1;               // i překrývající se trojice
+    }
+    if(platne) for(var i=0;i<kand.length;i++)
+      if(platne.indexOf(kand[i])>=0) return kand[i];
+    return null;
+  }
+  var zdroje=[['typ',st.typ],['kodMotoru',st.kodMotoru],['varianta',st.varianta]];
+  for(var i=0;i<zdroje.length;i++){
+    var t=najdi(zdroje[i][1]);
+    if(t) return {typ:t,zdroj:zdroje[i][0]};
+  }
+  var vin=String(st.vin||'');
+  if(vin.length===17){
+    var z=vin.substr(3,3);
+    if(/^\d{3}$/.test(z) && (!platne||platne.indexOf(z)>=0))
+      return {typ:z,zdroj:'vin'};
+  }
+  // Nic nesedlo na katalog → vrátí se první trojčíslí, které v textu
+  // reálně stojí (ne slepené číslice z celého řetězce), aby šlo
+  // uživateli říct, který typ vozu nemáme.
+  for(var j=0;j<zdroje.length;j++){
+    var q=/(\d{3})/.exec(String(zdroje[j][1]||''));
+    if(q) return {typ:q[1],zdroj:zdroje[j][0],nesedi:true};
+  }
+  var v2=String(st.vin||'');
+  if(v2.length===17 && /^\d{3}$/.test(v2.substr(3,3)))
+    return {typ:v2.substr(3,3),zdroj:'vin',nesedi:true};
+  return {typ:null,zdroj:null};
+}
+function fiatRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function fiatObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function fiatPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG|METAN/.test(t)) return 'benzin';
+  return null;
+}
+// Karosářské přívlastky pro ruční výběr
+var FIAT_KAROSERIE=/\s+(SKRINOVA\/VELKOPROSTOROVA|SKŘÍŇOVÁ\/VELKOPROSTOROVÁ|VELKOPROSTOROVA|VELKOPROSTOROVÁ|KAROSERIE\/KOMBI|SCHRANKY\/SIKMA ZAD|SCHRÁNKY\/ŠIKMÁ ZAD|MULTI WAGON|WEEKEND|KOMBI|LIMUZINA|LIMUZÍNA|SIKMA ZADNI CAST|ŠIKMÁ ZADNÍ ČÁST|KABRIOLET|AUTOBUS|VAN)\b[\s\S]*$/;
+function fiatZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(FIAT_KAROSERIE,'');
+  if(m.indexOf('/')>=0) m=m.split('/')[0];        // "SEICENTO / 600"
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+(I{1,3}|IV|V|VI{1,3})$/,'');    // BRAVO I, BRAVO II
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+
+// Kód motoru z registru (pole Typ motoru). "188 A 4.000" → 188A4000
+function fiatNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k.length<5) return null;
+  var nalez=null;
+  vozy.forEach(function(x){ fiatKody(x).forEach(function(c){
+    if(c===k) nalez=c })});
+  return nalez;
+}
+
+// ── Párování Fiat ─────────────────────────────────────────────
+// Kód motoru → typ vozu → palivo → objem → výkon → rok → pohon.
+// Kód jde první, ale sám nestačí — Fiat montoval týž motor do víc
+// modelů, takže model rozliší až trojčíslí typu vozu.
+function parujFiat(DATA,zn,kw){
+  // seznam typů, které katalog zná — podle nich se pozná, které
+  // trojčíslí v textu z registru je to pravé
+  var platne=[];
+  DATA.forEach(function(x){ fiatTypyVozu(x.model).forEach(function(c){
+    if(platne.indexOf(c)<0) platne.push(c)})});
+  var t=fiatTypZRegistru(stav,platne);
+  var kodReg=fiatNajdiKod(DATA,stav);
+  hlavickaRegistr(kodReg||(t.typ?('typ '+t.typ):null),kw,null);
+
+  var vyber=DATA;
+  if(kodReg){
+    var uk=DATA.filter(function(x){return fiatKody(x).indexOf(kodReg)>=0});
+    if(uk.length) vyber=uk;
+  }
+  var typSedi=false;
+  if(t.typ){
+    var ut=vyber.filter(function(x){return fiatTypyVozu(x.model).indexOf(t.typ)>=0});
+    if(ut.length){ vyber=ut; typSedi=true; }
+  }
+  // Když trojčíslí nesedne, zkusí se obchodní označení (bývá prázdné).
+  var mdl=String(stav.model||'').toUpperCase().replace(/\s+/g,' ').trim();
+  if(/NEUVEDEN/.test(mdl)) mdl='';
+  var modelSedi=false;
+  if(!typSedi && !kodReg && mdl){
+    var um=vyber.filter(function(x){return fiatZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=fiatZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length){ vyber=um; modelSedi=true; }
+  }
+
+  var pal=fiatPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=fiatObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+  // ROK. Fiat modelový rok do 10. znaku VIN NEKÓDUJE — u Punta 199
+  // je tam "0", což v ISO 3779 sekvenci vůbec není. Použije se proto
+  // ROK PRVNÍ REGISTRACE z registru. Tolerance ±1 rok: registrace
+  // bývá pár měsíců po výrobě a přesahuje přes Nový rok.
+  // Rozliší generace se stejným typem vozu i motorem — Grande Punto
+  // (2005–2015) × Punto EVO (2009–2012) × Punto 199 (od 2012).
+  var rok=parseInt(String(stav.rok||'').match(/\d{4}/)||0,10);
+  var rokMimo=false;
+  if(rok){
+    var ur=vyber.filter(function(x){
+      var q=fiatRoky(x); return rok>=q[0]-1 && rok<=q[1]+1});
+    // Nesedí rok na žádného kandidáta? Pak to není jiná verze téhož
+    // vozu, ale JINÁ GENERACE, kterou v katalogu nemáme — Punto 176
+    // (1993–1999) × Punto 188 (1999–2012). Bez téhle pojistky by
+    // prefix "PUNTO" našel novější generaci a nabídl filtry z cizího
+    // auta. Tolerance ±1 stačí: první registrace je vždycky až po
+    // začátku výroby, jen může přesáhnout přes Nový rok.
+    // Uplatní se jen tam, kde se model našel přes prefix (viz níže) —
+    // když sedí kód motoru nebo typ vozu, rok jen zpřesňuje.
+    if(ur.length) vyber=ur; else rokMimo=true;
+  }
+  vyber=preferPohon(vyber,stav.pohon);
+
+  // Bez kódu motoru i bez typu vozu nemá smysl hádat podle objemu
+  // a výkonu napříč celou značkou — Fiat montoval stejné motory do
+  // půlky palety a vyšlo by deset náhodných vozů, které vypadají
+  // jako výsledek. Radši se řekne, že vůz v nabídce není.
+  if((!kodReg && !typSedi && !modelSedi) || (rokMimo && !kodReg && !typSedi)){
+    varovani('Vůz <b>'+esc(stav.model||'—')+'</b>'+
+      (t.typ?' (typ '+esc(t.typ)+')':'')+
+      (rok?', rok '+rok:'')+' <b>není v katalogu Fiat</b> — '+
+      (rokMimo
+        ? 'našla se sice podobně pojmenovaná řada, ale <b>jiné generace</b> '+
+          '(roky nesedí). Filtry z ní by na tenhle vůz nepasovaly. '
+        : 'kód motoru '+esc(stav.kodMotoru||'—')+' ani typ vozu nesedí na nic. ')+
+      'Nutné <b>ruční nacenění</b>, nebo vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu Fiat nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  // Slučování: stejný typ vozu, překrývající se roky a shodné díly.
+  // Spojí karoserie (Punto × Punto Schránky) i palivové mutace
+  // (Natural Power, Bipower) — ověřeno, že mají stejné filtry.
+  var pocet=vyber.length, slouceno=false;
+  if(pocet>1){
+    var skup={}, poradi=[];
+    vyber.forEach(function(x){
+      var k=fiatTypyVozu(x.model).join('-')+'|'+fiatZaklad(x.model);
+      if(!skup[k]){ skup[k]=[]; poradi.push(k) }
+      var q=fiatRoky(x), kam=null;
+      skup[k].forEach(function(sk,i){
+        if(kam===null && sk.some(function(y){var z=fiatRoky(y);
+          return q[0]<=z[1] && z[0]<=q[1]})) kam=i;
+      });
+      if(kam===null) skup[k].push([x]); else skup[k][kam].push(x);
+    });
+    var out=[];
+    poradi.forEach(function(k){
+      skup[k].forEach(function(sk){
+        if(sk.length>1 && renDilySedi(sk)){ out.push(psaSluc(sk)); slouceno=true }
+        else out=out.concat(sk);
+      });
+    });
+    vyber=out;
+  }
+
+  // Kód pro filtrování položek uvnitř karty
+  var kod=kodReg;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ fiatKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!kodReg && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná — '+
+      'ten model nejspíš nemáme nascrapovaný. Vůz se dohledal podle typu, '+
+      'objemu a výkonu — ověř motorizaci.');
+  if(!t.typ)
+    varovani('Z registru se nepodařilo určit <b>typ vozu</b> (trojčíslí). '+
+      'Hledalo se jen podle objemu, výkonu a paliva — ověř výsledek.');
+  else if(t.zdroj==='vin')
+    varovani('Typ vozu <b>'+esc(t.typ)+'</b> se vzal ze <b>VINu</b>, pole Typ '+
+      'bylo prázdné. Ověř, že model sedí.');
+  else if(!typSedi)
+    varovani('Typ vozu <b>'+esc(t.typ)+'</b> z registru není v katalogu Fiat — '+
+      'ten model zatím nemáme nascrapovaný. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(slouceno)
+    vyber.forEach(function(x){
+      if(!x._slouceno) return;
+      varovani('Sloučeno '+x._slouceno.length+' provedení ('+
+        esc(x._slouceno.map(function(m){return m.replace(/\s*\([^)]*\)/g,'')}).join(', '))+
+        ') — mají shodné filtry ve všech kategoriích.');
+    });
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení, která se filtry liší. '+
+      (kodReg
+        ? 'Kód motoru <b>'+esc(kodReg)+'</b> sedí na víc verzí — Fiat týž motor '+
+          'montoval do víc karoserií a palivových mutací. Rozliš podle karoserie.'
+        : 'Kód motoru z registru nepřišel, rozliš podle karoserie a roku.'));
+
+  V={vozy:vyber,kod:kod,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  MG (SAIC) — vlastní pravidla                              ║
+// ║  Nic z tohohle bloku se u ostatních značek nepoužije.      ║
+// ╠═══════════════════════════════════════════════════════════╣
+// ║ Ověřeno na výpisu z registru (MG ZS 1.5, 2025):            ║
+// ║  · Typ motoru 15S4C → katalog "ZS SUV (AZS1)" 1.5 VTi 78kW ║
+// ║    PŘESNÁ shoda. Kód je v Typu motoru jako u Opelu, ale    ║
+// ║    na rozdíl od něj sedí — SAIC nic nepřeznačkovává.       ║
+// ║  · Varianta AB1PA — bezobsažná, nepoužívá se.              ║
+// ║  · Typ "/ SZS1" × katalog "(AZS1)" — NESEDÍ, platforma se  ║
+// ║    jako klíč nepoužívá.                                    ║
+// ║  · Obchodní označení "MG ZS" nese značku; katalog ji má    ║
+// ║    jen u MG 3 a MG 6, u HS a ZS ne → ořezává se z obou.    ║
+// ║ Rok z VIN funguje (10. znak S = 2025, sedí na registraci). ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+// Kódy v katalogu jsou alfanumerické, občas s mezerou ("18 K4G").
+function mgKodySeznam(lst){
+  var out=[];
+  (lst||[]).forEach(function(k){
+    var t=String(k).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(t.length>=3&&out.indexOf(t)<0) out.push(t);
+  });
+  return out;
+}
+function mgKody(x){ return mgKodySeznam(x.kody) }
+function mgMaKod(x,kod){ return mgKody(x).indexOf(kod)>=0 }
+
+// "ZS SUV (AZS1) od 2017" → "ZS" · "MG 6 limuzina od 2010" → "6"
+var MG_KAROSERIE=/\s+(SUV|LIMUZINA|LIMUZÍNA|HATCHBACK|KOMBI|KAROSERIE\/KOMBI|KUPE|COUPE|KABRIOLET|CABRIO|VAN)\b[\s\S]*$/;
+function mgZaklad(model){
+  var m=(model||'').toUpperCase();
+  m=m.replace(/\([^)]*\)/g,'');                        // (AZS1), (ZP2_)
+  m=m.replace(/\b(OD|DO)\s*\d{4}[\s\S]*$/,'');         // "od 2017"
+  m=m.replace(/\d{4}\s*-\s*\d{4}[\s\S]*$/,'');         // "2010-2026"
+  m=m.replace(/\s+/g,' ').trim();
+  m=m.replace(MG_KAROSERIE,'');
+  m=m.replace(/^MG\s*/,'');                            // "MG 3" → "3"
+  return m.replace(/\s+/g,' ').trim()||(model||'').toUpperCase();
+}
+// Registr píše obchodní označení včetně značky ("MG ZS", "MG HS").
+function mgZakladRegistr(model){
+  var m=(model||'').toUpperCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  m=m.replace(/\s+\d[.,]\d[\s\S]*$/,'');               // "… 1.5 T"
+  m=m.replace(MG_KAROSERIE,'');
+  m=m.replace(/^MG\s*/,'');
+  return m.replace(/\s+/g,' ').trim();
+}
+// Modelový rok z VIN — u MG se NESMÍ použít obecné rokZVin().
+// Ověřeno na 25 vozech z registru: 10. znak MG plní správně, ale
+// rozlišení cyklu podle 7. znaku (americké 49 CFR) u něj NEPLATÍ —
+// 4 vozy mají na 7. pozici číslici (LSJWH40**0**8P…, LSJWS43**3**9T…)
+// a obecné pravidlo je posune o 30 let zpět (2024 → 1993).
+// MG se v ČR prodává od roku 2019, takže se cyklus fixuje na
+// novější; pojistka v rokZVin() pak stará britská MG (2005) vrátí
+// zpět sama, protože jinak by vyšel budoucí rok.
+function mgRokZVin(vin){
+  if(!vin||vin.length!==17) return null;
+  var i=VIN_ROKY.indexOf(vin.charAt(9));
+  if(i<0) return null;
+  var rok=2010+i, ted=new Date().getFullYear();
+  if(rok>ted+1) rok-=30;
+  return rok;
+}
+function mgRoky(x){
+  var r=String(x.roky||'').match(/\d{4}/g);
+  if(!r) return [0,9999];
+  return [parseInt(r[0],10), r[1]?parseInt(r[1],10):9999];
+}
+function mgObjemMotoru(motor){
+  var m=/(\d)[.,](\d)/.exec(String(motor||''));
+  return m?parseFloat(m[1]+'.'+m[2]):null;
+}
+function mgPalivo(p){
+  var t=String(p||'').toUpperCase();
+  if(/NAFT|DIESEL|^NM\b|^D$/.test(t)) return 'nafta';
+  if(/BENZ|PETROL|^BA\b|LPG|CNG/.test(t)) return 'benzin';
+  return null;
+}
+// Kód motoru: pole Typ motoru, přesná shoda. Když nesedne, hledá se
+// jako podřetězec v Typu a Variantě. VIN se neprohledává — kódy
+// jako "GS61" by se v něm trefily náhodou.
+function mgNajdiKod(vozy,st){
+  var k=String(st.kodMotoru||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(k){
+    var presne=null;
+    vozy.forEach(function(x){ mgKody(x).forEach(function(c){ if(c===k) presne=c })});
+    if(presne) return {kod:presne,zdroj:'typMotoru'};
+  }
+  var zdroje=[['Typ',st.typ],['Varianta',st.varianta]];
+  for(var i=0;i<zdroje.length;i++){
+    var v=String(zdroje[i][1]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length<4) continue;
+    var nej=null;
+    vozy.forEach(function(x){ mgKody(x).forEach(function(c){
+      if(c.length>=4 && v.indexOf(c)>=0 && (!nej||c.length>nej.length)) nej=c })});
+    if(nej) return {kod:nej,zdroj:zdroje[i][0]};
+  }
+  return {kod:null,zdroj:null};
+}
+
+// ── Párování MG ───────────────────────────────────────────────
+// Kód motoru → model → palivo → objem → výkon → rok.
+// Každý krok se uplatní, jen když po něm něco zbude.
+function parujMG(DATA,zn,kw){
+  var r=mgNajdiKod(DATA,stav);
+  hlavickaRegistr(r.kod,kw,null);
+
+  var vyber=DATA;
+  if(r.kod){
+    var uk=DATA.filter(function(x){return mgMaKod(x,r.kod)});
+    if(uk.length) vyber=uk;
+  }
+
+  var mdl=mgZakladRegistr(stav.model), modelSedi=true;
+  if(/NEUVEDEN/.test(String(stav.model||'').toUpperCase())) mdl='';
+  if(mdl){
+    var um=vyber.filter(function(x){return mgZaklad(x.model)===mdl});
+    if(!um.length) um=vyber.filter(function(x){
+      var z=mgZaklad(x.model);
+      return z.indexOf(mdl)===0 || mdl.indexOf(z)===0});
+    if(um.length) vyber=um; else modelSedi=false;
+  }
+
+  var pal=mgPalivo(stav.palivo);
+  if(pal){ var up=vyber.filter(function(x){return x.palivo===pal}); if(up.length) vyber=up }
+
+  var cm=parseInt(stav.objem,10)||0, objSedi=true;
+  if(cm){
+    var uo=vyber.filter(function(x){
+      var o=mgObjemMotoru(x.motor);
+      return o!==null && Math.abs(o*1000-cm)<=60});
+    if(uo.length) vyber=uo; else objSedi=false;
+  }
+
+  var kwSedi=true;
+  if(kw){
+    var uw=vyber.filter(function(x){return parseInt(x.vykon_kw,10)===kw});
+    if(uw.length) vyber=uw; else kwSedi=false;
+  }
+
+  // Rok z VIN rozliší generace se stejným názvem — ZS SUV (AZS1)
+  // od 2017 × ZS SUV (ZS32) od 2024, HS (AS23) × HS (AS33).
+  var rok=mgRokZVin(stav.vin);
+  if(rok){
+    var ur=vyber.filter(function(x){var q=mgRoky(x); return rok>=q[0]&&rok<=q[1]});
+    if(ur.length) vyber=ur;
+  }
+
+  if(!r.kod && (!mdl||!modelSedi) && (!kw||!cm)){
+    varovani('Z registru nepřišlo dost údajů (chybí kód motoru, model '+
+      'i výkon nebo objem). Vyber vůz ručně přes výběr nahoře.');
+    return;
+  }
+  if(!vyber.length){
+    varovani('Vůz se v katalogu MG nepodařilo najít. Vyber ho ručně nahoře.');
+    return;
+  }
+
+  // Kód pro filtrování položek uvnitř karty
+  var kod=r.kod;
+  if(!kod){
+    var ks=[];
+    vyber.forEach(function(x){ mgKody(x).forEach(function(c){
+      if(ks.indexOf(c)<0) ks.push(c)})});
+    if(ks.length===1) kod=ks[0];
+  }
+
+  if(!r.kod && stav.kodMotoru)
+    varovani('Kód motoru <b>'+esc(stav.kodMotoru)+'</b> z registru katalog nezná. '+
+      'Vůz se dohledal podle modelu, objemu, výkonu a roku — ověř motorizaci.');
+  else if(r.zdroj==='Typ'||r.zdroj==='Varianta')
+    varovani('Kód <b>'+esc(r.kod)+'</b> se našel až v poli <b>'+esc(r.zdroj)+
+      '</b>, ne v Typu motoru. Ověř, že motorizace sedí.');
+  if(mdl&&!modelSedi)
+    varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu — '+
+      'hledalo se napříč celou značkou MG. Zkontroluj výsledek.');
+  if(cm&&!objSedi)
+    varovani('Objem <b>'+cm+' cm³</b> nesedí na žádnou zbylou motorizaci.');
+  if(kw&&!kwSedi)
+    varovani('Výkon <b>'+kw+' kW</b> nesedí na žádný zbylý řádek — zobrazeny '+
+      'všechny výkonové verze.');
+  if(vyber.length>1)
+    varovani('Zbylo '+vyber.length+' provedení — rozliš podle objemu a roků.');
+
+  V={vozy:vyber,kod:kod,
+     karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+     vice:vyber.length>1};
+  predvyberRucni(zn,vyber[0],kod);
+  render();
+}
+
+// ── Pohon podle názvu motorizace v katalogu ───────────────────
+// Pegas značí pohon všech kol slovem v názvu ("2.0 TDI quattro",
+// "1.8 TSI 4x4", "2.0 TDI 4motion"). Bez toho = jedna náprava.
+function jeVsechnyKola(motor){
+  // 4WD doplněno 30. 8. — takhle pohon všech kol značí Toyota
+  // ("2.0 4WD", "1.4 D-4D 4WD") a řada dalších asijských značek.
+  // Bez toho vycházel RAV4 4WD stejně jako verze s jednou nápravou.
+  return /\b(quattro|4x4|4wd|4motion|4matic|xdrive|awd|allrad)\b/i.test(motor||'');
+}
+// Zúžení podle pohonu z registru: "predni"/"zadni" → jen vozy bez
+// pohonu všech kol, "4x4" → jen ty s ním. Když by nezbylo nic,
+// filtr se neuplatní (data nemusí pohon rozlišovat).
+function preferPohon(vozy,pohon){
+  if(vozy.length<2||!pohon) return vozy;
+  var chce4x4=(pohon==='4x4');
+  var uzsi=vozy.filter(function(x){return jeVsechnyKola(x.motor)===chce4x4});
+  return uzsi.length?uzsi:vozy;
+}
+
+// ── Technický vs. marketingový název motorizace ───────────────
+// VAG od 2016 přeznačil motory ("2.0 TDI 140 kW" → "40 TDI"),
+// ale jde o TÝŽ motor se stejným kódem i díly. Když kód sedí na
+// obě varianty, drží se technický název (objem + palivo), protože
+// odpovídá tomu, co je v technickém průkazu.
+function jeMarketingovy(motor){
+  return /^\s*\d{2}\s/.test(motor||'');     // "40 TDI", "35 TFSI"
+}
+function preferTechnicky(vozy){
+  if(vozy.length<2) return vozy;
+  var tech=vozy.filter(function(x){return !jeMarketingovy(x.motor)});
+  return tech.length?tech:vozy;
+}
+
+// ── Modelový rok z 10. znaku VIN (ISO 3779 / 49 CFR 565.15) ───
+// Cyklus: A–Y bez I,O,Q,U,Z, pak 1–9. Opakuje se po 30 letech,
+// takže kód sedí na dva roky (2 = 1982 i 2012).
+// Rozlišení: 7. znak — číslice = cyklus 1980–2009, písmeno = 2010–2039.
+// Pojistka: rok v budoucnosti se posune o 30 let zpět.
+var VIN_ROKY='ABCDEFGHJKLMNPRSTVWXY123456789';
+function rokZVin(vin){
+  if(!vin||vin.length!==17) return null;
+  var i=VIN_ROKY.indexOf(vin.charAt(9));
+  if(i<0) return null;
+  var novy=/[A-Z]/.test(vin.charAt(6));   // 7. znak písmeno → novější cyklus
+  var rok=(novy?2010:1980)+i;
+  var ted=new Date().getFullYear();
+  if(rok>ted+1) rok-=30;                   // dovoz/starý vůz — posun zpět
+  return rok;
+}
+
+var VISION_KEY='AIzaSyDngFtfxDub3SR5zOrMYYbWw-z7B8lEsCw';
+var SVG_CAM='<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+var SVG_SPIN='<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2.5;stroke-linecap:round;animation:vinSpin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>';
+
+// ── Kamera / Vision API — převzato z oleje.html ───────────────
+function otevriVyberFotky(){
+  if(!navigator.maxTouchPoints||navigator.maxTouchPoints===0){ $('inputGalerie').click(); }
+  else { $('camModal').classList.add('open'); }
+}
+function zavriCamModal(){ $('camModal').classList.remove('open') }
+function zavriModal(e){ if(e.target===$('camModal')) zavriCamModal() }
+function spustiFotoaparat(){ zavriCamModal(); $('inputFotoaparat').click() }
+function vyberZGalerie(){ zavriCamModal(); $('inputGalerie').click() }
+
+function zpracujFotku(input){
+  if(!input.files||!input.files[0]) return;
+  var btn=$('camBtn');
+  btn.innerHTML=SVG_SPIN+' Rozpoznávám…'; btn.disabled=true;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var base64=e.target.result.split(',')[1];
+    fetch('https://vision.googleapis.com/v1/images:annotate?key='+VISION_KEY,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({requests:[{image:{content:base64},features:[{type:'TEXT_DETECTION',maxResults:1}]}]})
+    })
+    .then(function(r){return r.json()})
+    .then(function(data){
+      btn.innerHTML=SVG_CAM+' Skenovat VIN'; btn.disabled=false;
+      var text=''; try{ text=data.responses[0].fullTextAnnotation.text||'' }catch(e){}
+      var vinMatch=text.match(/VIN\)[^\w]*([A-HJ-NPR-Z0-9]{17})/i);
+      if(!vinMatch) vinMatch=text.match(/\bE[.:]\s*([A-HJ-NPR-Z0-9]{17})/i);
+      if(!vinMatch){
+        var cleaned=text.replace(/\s/g,'').replace(/[IOQ]/g,'');
+        var kandidati=cleaned.match(/[A-HJ-NPR-Z0-9]{17}/g)||[];
+        var platne=kandidati.filter(function(k){return (k.match(/[0-9]/g)||[]).length>=4});
+        if(platne.length>0){
+          platne.sort(function(a,b){return (b.match(/[0-9]/g)||[]).length-(a.match(/[0-9]/g)||[]).length});
+          vinMatch=[platne[0],platne[0]];
+        }
+      }
+      var vin=vinMatch?(vinMatch[1]||vinMatch[0]):null;
+      if(vin){ $('vinInput').value=vin; reset(); nactiVin(); }
+      else { chyba('VIN nebyl na fotografii nalezen. Zkuste znovu s ostřejším záběrem.') }
+      input.value='';
+    })
+    .catch(function(){
+      btn.innerHTML=SVG_CAM+' Skenovat VIN'; btn.disabled=false;
+      chyba('Chyba při rozpoznávání textu. Zkuste to znovu.');
+      input.value='';
+    });
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Olej z Castrol API přes GAS (?action=olej) ────────────────
+// Vrací {oleje:[{nazev,cenaOleje,km,interval,priorita,cena1lDoliti}],
+//        objem, kodMotoru, cenaFiltr…}. Kategorie: km<=20000 = Standard,
+// nad = Long Life. V rámci kategorie vyhrává nejnižší priorita.
+var OLEJ=null;
+// Rok a značka jdou z registru, který se volal o krok dřív — GAS
+// je tak nemusí tahat znovu. Rok = první registrace; u značek,
+// které kódují modelový rok do 10. znaku VIN (VAG, Opel, PSA),
+// si ho GAS spočítá z VINu sám a tenhle parametr ignoruje.
+// Modelový rok z VIN podle pravidel značky — jedno místo pro celý
+// systém. Castrol staví rozsahy na modelovém roce, takže je přesnější
+// než první registrace; posílá se GASu jako &rokVin=.
+//   MG      → vlastní cyklus (viz mgRokZVin), obecné pravidlo selhává
+//   Renault → 10. znak modelový rok NENESE, vrací se null (Duster 2012
+//             by z něj vyšel jako 2004) → GAS použije registraci
+//   ostatní → obecné rokZVin()
+function rokVinProZnacku(vin,zn){
+  var rezim=(ZNACKY[zn]&&ZNACKY[zn].rezim)||'vag';
+  if(rezim==='renault') return null;
+  if(rezim==='mg') return mgRokZVin(vin);
+  return rokZVin(vin);
+}
+function nactiOlej(vin,rok,znacka,rokVin){
+  OLEJ={nacita:true};   // ukázat placeholder, Castrol API bývá pomalé
+  fetch(window.GAS_URL+'?vin='+vin+'&action=olej'+
+        (rok?'&rok='+encodeURIComponent(rok):'')+
+        (znacka?'&znacka='+encodeURIComponent(znacka):'')+
+        (rokVin?'&rokVin='+encodeURIComponent(rokVin):''),{redirect:'follow'})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(!d||d.error||!d.oleje||!d.oleje.length){
+        OLEJ={chyba:(d&&d.error)?String(d.error):'Pro tento vůz se nevrátil žádný olej.'};
+        if(V) render(); return;
+      }
+      OLEJ={data:d,kat:null,rozbal:false};
+      var std=d.oleje.filter(function(o){return (o.km||0)<=20000});
+      OLEJ.kat=std.length?'standard':'ll';
+      if(V) render();
+    })
+    .catch(function(e){
+      OLEJ={chyba:'Olej se nepodařilo načíst ('+(e&&e.message?e.message:'chyba spojení')+').'};
+      if(V) render();
+    });
+}
+function olejeKategorie(kat){
+  if(!OLEJ||!OLEJ.data) return [];
+  return OLEJ.data.oleje.filter(function(o){
+    return kat==='standard'?(o.km||0)<=20000:(o.km||0)>20000})
+    .sort(function(a,b){return (a.priorita||999)-(b.priorita||999)});
+}
+function zvolKat(k){ OLEJ.kat=k; OLEJ.volba=null; render() }
+function zvolOlej(n){ OLEJ.volba=n; OLEJ.rozbal=false; render() }
+function rozbalOleje(){ OLEJ.rozbal=!OLEJ.rozbal; render() }
+
+// Podle čeho Castrol vybral verzi vozu. GAS vrací rokZdroj:
+//   'registrace'  = rok z první registrace sedl na rozsah
+//   'vin'         = rok z 10. znaku VIN sedl (VAG, Opel, PSA)
+//   'nejnovejsi'  = nesedlo nic, vzala se nejnovější verze
+// Když pole chybí (starší GAS), ukáže se obecná varianta.
+function olejPodleCeho(d){
+  var zdroj=d&&d.rokZdroj, rok=d&&d.rokPouzity;
+  var t;
+  if(zdroj==='registrace')
+    t='Verze vozu vybraná podle <b>roku první registrace ('+esc(rok)+')</b>. '+
+      'U dovezených vozů nemusí odpovídat roku výroby.';
+  else if(zdroj==='vin'||zdroj==='vinStranka')
+    t='Verze vozu vybraná podle <b>modelového roku z VIN ('+esc(rok)+')</b>.';
+  else if(zdroj==='nejnovejsi')
+    t='<b>Rok nesedl na žádnou verzi</b> — vzala se nejnovější. '+
+      'Zkontroluj, že specifikace odpovídá vozu.';
+  else
+    t='Verze vozu vybraná podle roku — u dovozů nemusí sedět.';
+  return '<div class="box warn visible" style="margin:0 0 12px;font-size:12.5px">'+
+    t+' Před objednáním ověř specifikaci.</div>';
+}
+
+function olejHtml(){
+  if(!OLEJ) return '';
+  if(OLEJ.nacita){
+    return '<div class="card"><div class="section-title">Doporučený olej</div>'+
+      '<div class="section-sub" style="margin:0">'+
+      '<span class="spin" style="border-color:var(--blue-mid);border-top-color:var(--blue);'+
+      'width:14px;height:14px;border-width:2px;vertical-align:-2px"></span> '+
+      'Načítám z Castrolu…</div></div>';
+  }
+  if(OLEJ.chyba){
+    return '<div class="card"><div class="section-title">Doporučený olej</div>'+
+      '<div class="section-sub" style="margin:0;color:var(--amber)">'+esc(OLEJ.chyba)+'</div></div>';
+  }
+  var d=OLEJ.data;
+  var seznam=olejeKategorie(OLEJ.kat);
+  if(!seznam.length) return '';
+  var akt=OLEJ.volba?(seznam.filter(function(o){return o.nazev===OLEJ.volba})[0]||seznam[0]):seznam[0];
+  var ostatni=seznam.filter(function(o){return o!==akt});
+  var maStd=olejeKategorie('standard').length, maLL=olejeKategorie('ll').length;
+  var objem=d.objem||'';
+
+  var taby='';
+  if(maStd&&maLL){
+    taby='<div class="olej-tabs">'+
+      '<button class="var-btn'+(OLEJ.kat==='standard'?' on':'')+'" onclick="zvolKat(\'standard\')">Standard</button>'+
+      '<button class="var-btn'+(OLEJ.kat==='ll'?' on':'')+'" onclick="zvolKat(\'ll\')">Long Life</button></div>';
+  }
+  return '<div class="card">'+
+    '<img class="olej-logo" src="logocastrol.png" alt="Castrol" '+
+      'onerror="this.style.display=\'none\'">'+
+    '<div class="section-title">Doporučený olej</div>'+
+    '<div class="section-sub">Podle specifikace výrobce'+(objem?' · náplň '+esc(objem)+' l':'')+'</div>'+
+    olejPodleCeho(d)+
+    taby+
+    '<div class="olej-box"><div class="olej-head">'+
+      '<span class="olej-name">'+esc(akt.nazev)+'</span>'+
+      '<span class="olej-price">'+(akt.cenaOleje||'—')+' Kč</span></div>'+
+      '<div class="olej-meta">'+esc(akt.interval||'')+'</div>'+
+    '</div>'+
+    (ostatni.length?'<div class="more"><button class="more-btn" onclick="rozbalOleje()">'+
+      (OLEJ.rozbal?'Skrýt další oleje':'Další oleje ('+ostatni.length+')')+'</button>'+
+      (OLEJ.rozbal?'<div class="olej-list">'+ostatni.map(function(o){
+        return '<div class="alt-row"><span><b>'+esc(o.nazev)+'</b><br>'+
+          '<span class="olej-meta">'+esc(o.interval||'')+'</span><br>'+
+          '<button class="more-btn" onclick="zvolOlej(\''+esc(o.nazev).replace(/'/g,"")+'\')">Vybrat</button>'+
+          '</span><b>'+(o.cenaOleje||'—')+' Kč</b></div>'}).join('')+'</div>':'')+
+      '</div>':'')+
+    '</div>';
+}
+
+// ── VIN cesta ─────────────────────────────────────────────────
+function nactiVin(){
+  var vin=$('vinInput').value.trim().toUpperCase();
+  $('vinInput').value=vin; reset();
+  if(vin.length!==17){chyba('VIN musí mít přesně 17 znaků.');return}
+  if(/[IOQ]/.test(vin)){chyba('VIN nesmí obsahovat písmena I, O nebo Q.');return}
+  if(!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)){chyba('VIN obsahuje nepovolené znaky.');return}
+
+  var btn=$('vinBtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  fetch(window.GAS_URL+'?vin='+vin,{redirect:'follow'})
+    .then(function(r){return r.json()})
+    .then(function(data){
+      btn.disabled=false; btn.textContent='Načíst filtry';
+      if(data.error){chyba(data.error);return}
+      stav={vin:vin,znacka:data.znacka,model:data.model,typ:data.typ,varianta:data.varianta,
+            kodMotoru:data.kodMotoru,palivo:data.palivo,objem:data.obsah,
+            vykon:data.vykon?String(data.vykon).split('/')[0].trim():'',
+            pohon:data.pohon||'',pohonRaw:data.pohonRaw||'',rok:data.rok||''};
+      var palEl=(stav.palivo||'').toLowerCase();
+      // paralelně, nezdržuje filtry
+      if(palEl.indexOf('elektro')<0&&palEl!=='el')
+        nactiOlej(vin,stav.rok,stav.znacka,rokVinProZnacku(vin,normZnacka(stav.znacka)));
+      spojSKatalogem();
+    })
+    .catch(function(){
+      btn.disabled=false; btn.textContent='Načíst filtry';
+      chyba('Nepodařilo se připojit k registru. Zkuste znovu.');
+    });
+}
+
+// Pořadí: značka → model → kW (zúžení) → kód motoru.
+// PŘEVZATO ze staré verze — jen pole nového formátu (model, vykon_kw, kody).
+function spojSKatalogem(){
+  var zn=normZnacka(stav.znacka);
+  nastavRezim(zn);
+  var kw=parseInt(stav.vykon,10)||0;
+  var mdl=(stav.model||'').toUpperCase().trim();
+
+  // Elektromobil — filtry ani olej nedávají smysl, končí se rovnou.
+  var pal=(stav.palivo||'').toLowerCase();
+  if(pal.indexOf('elektro')>=0||pal==='el'){
+    hlavickaRegistr(null,kw,null); OLEJ=null;
+    varovani('Jde o <b>elektromobil</b> — servis elektromobilů zatím neděláme. '+
+      'Motorové filtry ani olej se u něj neřeší.');
+    return;
+  }
+
+  if(!zn){hlavickaRegistr(null,kw,null);
+    varovani('Značka <b>'+esc(stav.znacka)+'</b> zatím není v datech.');return}
+
+  nactiKatalog(zn).then(function(d){
+    var DATA=d.vozy||[];
+    if(!DATA.length){hlavickaRegistr(null,kw,null);chyba('Data katalogu jsou prázdná.');return}
+
+    // Peugeot / Citroën mají vlastní logiku — viz PSA blok výše.
+    // Všechno pod touhle odbočkou je původní, ověřené párování VAG.
+    if(jePSA(zn)){ parujPSA(DATA,zn,kw); return }
+    // Opel má vlastní logiku — viz OPEL blok výše.
+    if(jeOpel(zn)){ parujOpel(DATA,zn,kw); return }
+    // Renault a Dacia mají vlastní logiku — viz RENAULT blok výše.
+    if(jeRenault(zn)){ parujRenault(DATA,zn,kw); return }
+    // MG má vlastní logiku — viz MG blok výše.
+    if(jeMG(zn)){ parujMG(DATA,zn,kw); return }
+    // Fiat má vlastní logiku — viz FIAT blok výše.
+    if(jeFiat(zn)){ parujFiat(DATA,zn,kw); return }
+    // Kia a Hyundai mají vlastní logiku — viz KOREA blok výše.
+    if(jeKorea(zn)){ parujKorea(DATA,zn,kw); return }
+    // Ford má vlastní logiku — viz FORD blok výše.
+    if(jeFord(zn)){ parujFord(DATA,zn,kw); return }
+    // Toyota má vlastní logiku — viz TOYOTA blok výše.
+    if(jeToyota(zn)){ parujToyota(DATA,zn,kw); return }
+
+    // 1) značka je daná souborem — kandidáti jsou všechny vozy
+    var kandidati=DATA;
+
+    // 2) model z registru. Registr může přidat karoserii ("OCTAVIA COMBI"),
+    //    proto se zkouší celý název a pak se ubírají slova zprava,
+    //    dokud něco nesedne: OCTAVIA COMBI → OCTAVIA.
+    var podleModelu=[], pouzityModel='';
+    if(mdl){
+      var slova=mdl.split(/\s+/).filter(Boolean);
+      for(var dd=slova.length; dd>0 && !podleModelu.length; dd--){
+        var zk=slova.slice(0,dd).join(' ');
+        podleModelu=kandidati.filter(function(x){
+          return x.model.toUpperCase().indexOf(zk)===0});
+        if(podleModelu.length) pouzityModel=zk;
+      }
+    }
+    // Fallback pro sportovní verze: katalog často nemá S/RS řadu
+    // zvlášť (S7 → A7, RS6 → A6). Zkusí se až když přímé hledání
+    // selže; správnou motorizaci pak stejně určí kód motoru.
+    var pouzitoSNaA=false;
+    if(!podleModelu.length&&/^(RS|S)\s*\d/i.test(mdl)){
+      var jakoA=mdl.replace(/^(RS|S)\s*(\d)/i,'A$2');
+      var slovaA=jakoA.split(/\s+/).filter(Boolean);
+      for(var da=slovaA.length; da>0 && !podleModelu.length; da--){
+        var zkA=slovaA.slice(0,da).join(' ');
+        podleModelu=kandidati.filter(function(x){
+          return x.model.toUpperCase().indexOf(zkA)===0});
+        if(podleModelu.length){pouzityModel=zkA;pouzitoSNaA=true}
+      }
+    }
+
+    var modelSedi=podleModelu.length>0;
+    if(modelSedi) kandidati=podleModelu;
+
+    // 3) kW jako pojistka — zmenší množinu kódů, klesá riziko falešné shody
+    var uzke=kw?kandidati.filter(function(x){return parseInt(x.vykon_kw,10)===kw}):[];
+
+    // 4) kód motoru — nejdřív v zúžené množině, teprve pak v širší
+    var r=uzke.length?najdiKod(uzke,stav.varianta,stav.kodMotoru):{kod:null,zdroj:null};
+    var kwSedi=true;
+    if(!r.kod){
+      r=najdiKod(kandidati,stav.varianta,stav.kodMotoru);
+      if(r.kod) kwSedi=false;
+    }
+
+    hlavickaRegistr(r.kod,kw,r.zdroj);
+
+    if(pouzitoSNaA){
+      varovani('Model <b>'+esc(stav.model)+'</b> katalog nemá — hledalo se pod '+
+        '<b>'+esc(pouzityModel)+'</b>. Motorizaci určuje kód motoru, ale ověř výsledek.');
+    }
+    if(mdl&&!modelSedi){
+      varovani('Model <b>'+esc(stav.model)+'</b> nesedí na žádný název v katalogu. '+
+        'Hledá se napříč celou značkou '+esc(zn)+' — zkontroluj výsledek.');
+    } else if(modelSedi&&pouzityModel!==mdl&&!pouzitoSNaA){
+      varovani('Model z registru je <b>'+esc(stav.model)+'</b>, v katalogu se hledalo podle '+
+        '<b>'+esc(pouzityModel)+'</b> — karoserii katalog nerozlišuje.');
+    }
+    if(!r.kod){
+      varovani('Motor se nepodařilo spárovat. Varianta <b>'+esc(stav.varianta||'—')+
+        '</b> ani kód <b>'+esc(stav.kodMotoru||'—')+'</b> nesedí na nic v katalogu'+
+        (modelSedi?' u modelu '+esc(stav.model):'')+'. Vyber vůz ručně přes selecty nahoře.');
+      return;
+    }
+    if(!kwSedi&&kw){
+      varovani('Výkon <b>'+kw+' kW</b> z registru nesedí na žádný řádek s kódem '+
+        esc(r.kod)+'. Zobrazeny všechny výkonové verze — ověř podle objemu.');
+    }
+    if(r.zdroj==='kodMotoru'){
+      varovani('Kód z registru <b>'+esc(stav.kodMotoru)+'</b> se dopároval na <b>'+
+        esc(r.kod)+'</b> podle začátku (registr kódy někdy zkracuje). '+
+        'Zkontroluj, že vybraná motorizace sedí.');
+    }
+
+    var zaklad=(kwSedi&&uzke.length)?uzke:kandidati;
+    var vyber=zaklad.filter(function(x){return maKod(x,r.kod)});
+    if(!vyber.length) vyber=kandidati.filter(function(x){return maKod(x,r.kod)});
+    vyber=preferPohon(vyber,stav.pohon);
+    vyber=preferTechnicky(vyber);
+
+    // Stav výsledku: kód je daný z VIN, chipy netřeba
+    V={vozy:vyber,kod:r.kod,karty:vyber.map(function(){return {rozbal:{},kab:'zakladni',volba:{}}}),
+       vice:vyber.length>1};
+    predvyberRucni(zn,vyber[0],r.kod);   // ukázat v ručním výběru, kam se to trefilo
+    render();
+  }).catch(function(){
+    hlavickaRegistr(null,kw,null);
+    chyba('Nepodařilo se načíst katalog '+zn+' ('+ZNACKY[zn].f+') — soubor musí ležet vedle stránky.');
+  });
+}
+
+// ── Ruční cesta: značka → model → motorizace ──────────────────
+function rucniZnacka(zn,el){
+  reset();
+  zvolenaZn=zn;
+  nastavRezim(zn);
+  document.querySelectorAll('.zn-tile.on').forEach(function(b){b.classList.remove('on')});
+  if(el) el.classList.add('on');
+  $('selMo').innerHTML='<option value="">Model…</option>'; $('selMo').disabled=true;
+  $('mtList').innerHTML='';
+  if(!zn) return;
+  nactiKatalog(zn).then(function(d){
+    var modely=[]; (d.vozy||[]).forEach(function(x){
+      var m=zakladniModel(x.model,zn);
+      if(modely.indexOf(m)<0) modely.push(m)});
+    modely.sort(function(a,b){return a.localeCompare(b,'cs')}).forEach(function(m){
+      var o=document.createElement('option');o.value=m;o.textContent=m;$('selMo').appendChild(o)});
+    $('selMo').disabled=false;
+  }).catch(function(){chyba('Katalog '+zn+' se nepodařilo načíst.')});
+}
+// Rok začátku generace ze slugu: "seat--alhambra-2010--1.4-tsi…" → 2010.
+// Registr ani model generaci nenese, proto se v rámci modelu roky
+// seřadí a očíslují automaticky: nejstarší = I, další = II, III…
+function rokGenerace(slug){
+  var m=/^[^-]+(?:-[^-]+)*?--.*?-(\d{4})--/.exec(slug);
+  if(m) return parseInt(m[1],10);
+  var casti=slug.split('--');
+  if(casti.length>=2){var r=/(\d{4})$/.exec(casti[1]); if(r) return parseInt(r[1],10)}
+  return 0;
+}
+var RIM=['I','II','III','IV','V','VI','VII','VIII'];
+// Pegas je nekonzistentní: u některých modelů je generace samostatný
+// "model" (IBIZA II, IBIZA III), u jiných jeden model s generací ve slugu
+// (CORDOBA + seat--cordoba-1993--). Sjednotí se do základního názvu.
+function zakladniModel(m,zn){
+  if(jeToyota(zn)) return toyZaklad(m);
+  if(jeFord(zn)) return fordZaklad(m);
+  if(jeKorea(zn)) return korZaklad(m);
+  if(jeFiat(zn)) return fiatZaklad(m);
+  if(jeMG(zn)) return mgZaklad(m);
+  if(jeRenault(zn)) return renZaklad(m);
+  if(jeOpel(zn)) return opelZaklad(m);
+  if(jePSA(zn)) return psaZaklad(m);
+  var s=m.replace(/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/,'');
+  return s||m;
+}
+function rimskaZModelu(m){
+  var r=/\s+(I{1,3}|IV|V|VI{1,3}|IX|X)$/.exec(m);
+  return r?r[1]:null;
+}
+// Rozsah let generace z rozsahů let motorizací
+function rozsahLet(skupina){
+  var od=0,doR=0;
+  skupina.forEach(function(x){
+    var r=/(\d{4})\D+(\d{4})/.exec(x.roky||'')||/(\d{4})/.exec(x.roky||'');
+    if(r){var a=parseInt(r[1],10), b=parseInt(r[2]||r[1],10);
+      if(!od||a<od) od=a; if(b>doR) doR=b;}
+  });
+  return od?(od+'–'+(doR||'')):'';
+}
+// Stav ručního výběru: model → generace → palivo → motorizace
+var R={vozy:[],gen:null,pal:null};
+
+// U PSA je generace přímo v názvu modelu (C4 II, Berlingo B9),
+// takže se jako klíč použije celý název a řadí se podle roku.
+function genKlic(x,zn){
+  // U Opelu je generace v názvu (ASTRA H, CORSA D) nebo ji nese
+  // jen rok (MOKKA × MOKKA od 2020) — klíčem je název + rok.
+  if(jeToyota(zn)) return 'Y'+toyRoky(x)[0]+'|'+x.model;
+  if(jeFord(zn)) return 'Y'+fordRoky(x)[0]+'|'+x.model;
+  if(jeKorea(zn)) return 'Y'+korRoky(x)[0]+'|'+x.model;
+  if(jeFiat(zn)) return 'Y'+fiatRoky(x)[0]+'|'+x.model;
+  if(jeMG(zn)) return 'Y'+mgRoky(x)[0]+'|'+x.model;
+  if(jeRenault(zn)) return 'Y'+renRoky(x)[0]+'|'+x.model;
+  if(jeOpel(zn)) return 'Y'+opelRoky(x)[0]+'|'+x.model;
+  if(jePSA(zn)) return 'Y'+psaRoky(x)[0]+'|'+x.model;
+  var rim=rimskaZModelu(x.model);
+  return rim?('R'+RIM.indexOf(rim)):('Y'+rokGenerace(x.slug));
+}
+function rucniModel(){
+  var zn=zvolenaZn, m=$('selMo').value; reset();
+  $('mtList').innerHTML=''; R={vozy:[],gen:null,pal:null,model:m,zn:zn};
+  if(!m) return;
+  R.vozy=KATALOG[zn].vozy.filter(function(x){return zakladniModel(x.model,zn)===m});
+  // Generace: unikátní klíče, seřazené vzestupně
+  var klice=[]; R.vozy.forEach(function(x){var k=genKlic(x,zn);
+    if(klice.indexOf(k)<0) klice.push(k)});
+  klice.sort(function(a,b){return parseInt(a.slice(1),10)-parseInt(b.slice(1),10)});
+  R.gener=klice;
+  if(klice.length===1) R.gen=klice[0];   // jen jedna → přeskočit krok
+  krokyRucni();
+}
+function zvolGen(k){ R.gen=k; R.pal=null; krokyRucni(); }
+function zvolPal(p){ R.pal=p; krokyRucni(); }
+
+function krokyRucni(){
+  var html='';
+  // ── Krok: generace ─────────────────────────────────────────
+  if(R.gener&&R.gener.length>1){
+    html+='<div class="mt-pal">Generace</div><div class="chips">'+R.gener.map(function(k){
+      var sk=R.vozy.filter(function(x){return genKlic(x,R.zn)===k});
+      var popis=(jePSA(R.zn)||jeOpel(R.zn)||jeRenault(R.zn)||jeMG(R.zn)||jeFiat(R.zn)||jeKorea(R.zn)||jeFord(R.zn)||jeToyota(R.zn))?sk[0].model.replace(/\s*\([^)]*\)/g,'')
+        :(R.model+(rimskaZModelu(sk[0].model)?' '+rimskaZModelu(sk[0].model):''));
+      return '<button class="chip'+(R.gen===k?' on':'')+'" onclick="zvolGen(\''+k+'\')">'+
+        esc(popis)+' <span style="font-weight:400">'+rozsahLet(sk)+'</span></button>';
+    }).join('')+'</div>';
+  }
+  if(!R.gen){ $('mtList').innerHTML=html; return; }
+
+  var vGen=R.vozy.filter(function(x){return genKlic(x,R.zn)===R.gen});
+
+  // ── Krok: palivo ───────────────────────────────────────────
+  var paliva=[]; vGen.forEach(function(x){
+    if(paliva.indexOf(x.palivo)<0) paliva.push(x.palivo)});
+  if(paliva.length>1){
+    html+='<div class="mt-pal">Palivo</div><div class="chips">'+paliva.map(function(p){
+      var n=vGen.filter(function(x){return x.palivo===p}).length;
+      return '<button class="chip'+(R.pal===p?' on':'')+'" onclick="zvolPal(\''+esc(p)+'\')">'+
+        esc(p)+' <span style="font-weight:400">('+n+')</span></button>';
+    }).join('')+'</div>';
+  } else R.pal=paliva[0]||null;
+  if(!R.pal){ $('mtList').innerHTML=html; return; }
+
+  // ── Krok: motorizace ───────────────────────────────────────
+  var vsechny=KATALOG[R.zn].vozy;
+  var cast=vGen.filter(function(x){return x.palivo===R.pal});
+  cast.sort(function(a,b){return a.motor===b.motor?
+    parseInt(a.vykon_kw,10)-parseInt(b.vykon_kw,10):a.motor.localeCompare(b.motor,'cs')});
+  html+='<div class="mt-pal">Motorizace ('+cast.length+')</div><div class="mt-list">'+
+    cast.map(function(x){
+      return '<button class="mt-row" onclick="rucniMotorIdx('+vsechny.indexOf(x)+',this)">'+
+        '<span><span class="mt-motor">'+esc(x.motor)+' · '+esc(x.vykon_kw)+' kW</span><br>'+
+        '<span class="mt-roky">'+esc(x.roky)+'</span></span>'+
+        '<span class="mt-kody">'+esc(x.kody.join(' '))+'</span></button>'}).join('')+'</div>';
+  $('mtList').innerHTML=html;
+}
+function rucniMotorIdx(i,el){
+  var zn=zvolenaZn; reset(); nastavRezim(zn);
+  document.querySelectorAll('.mt-row.on').forEach(function(b){b.classList.remove('on')});
+  if(el) el.classList.add('on');
+  var vuz=KATALOG[zn].vozy[i];
+  // Kód motoru: u skupiny s jedním kódem je daný; u více kódů se vybírá chipem.
+  // Chip je nutný jen tehdy, když nějaká položka kódy vůbec rozlišuje.
+  var rozlisuje=false;
+  Object.keys(vuz.filtry).forEach(function(k){
+    vuz.filtry[k].forEach(function(f){if(f.kody&&f.kody.length)rozlisuje=true})});
+  var kk=jeToyota(zn)?toyKody(vuz):
+         (jeFord(zn)?fordKody(vuz):
+         (jeKorea(zn)?korKody(vuz):
+         (jeFiat(zn)?fiatKody(vuz):
+         (jeMG(zn)?mgKody(vuz):
+         (jeRenault(zn)?renKody(vuz):
+         (jeOpel(zn)?opelKody(vuz):(jePSA(zn)?psaKody(vuz):vuz.kody.slice())))))));
+  V={vozy:[vuz],kod:kk.length===1?kk[0]:null,
+     chipy:(kk.length>1&&rozlisuje)?kk:null,
+     karty:[{rozbal:{},kab:'zakladni',volba:{}}],vice:false,rucni:true};
+  render();
+  $('out').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zvolKod(k){ if(!V)return; V.kod=k; render(); }
+
+// ── Předvýběr v ručním panelu podle výsledku VIN ──────────────
+// Ruční výběr zůstává viditelný a ukazuje, kam se párování trefilo:
+// značka → model → generace → palivo → motorizace. Nepřepisuje
+// výsledek (ten už je vykreslený), jen nastaví panel.
+function predvyberRucni(zn,vuz,kod){
+  if(!vuz) return;
+  // sloučená karta v katalogu není — najdi původní řádek podle slugu
+  if(vuz._slouceno){
+    var orig=KATALOG[zn].vozy.filter(function(x){return x.slug===vuz.slug})[0];
+    if(!orig) return;
+    vuz=orig;
+  }
+  // dlaždice značky
+  zvolenaZn=zn;
+  document.querySelectorAll('.zn-tile').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-zn')===zn)});
+  // select modelu
+  var zaklad=zakladniModel(vuz.model,zn);
+  var sel=$('selMo');
+  sel.innerHTML='<option value="">Model…</option>';
+  var modely=[]; KATALOG[zn].vozy.forEach(function(x){
+    var m=zakladniModel(x.model,zn); if(modely.indexOf(m)<0) modely.push(m)});
+  modely.sort(function(a,b){return a.localeCompare(b,'cs')}).forEach(function(m){
+    var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
+  sel.disabled=false; sel.value=zaklad;
+  // kroky generace / palivo / motorizace
+  R={vozy:KATALOG[zn].vozy.filter(function(x){return zakladniModel(x.model,zn)===zaklad}),
+     gen:genKlic(vuz,zn),pal:vuz.palivo,model:zaklad,zn:zn};
+  var klice=[]; R.vozy.forEach(function(x){var k=genKlic(x,zn);
+    if(klice.indexOf(k)<0) klice.push(k)});
+  klice.sort(function(a,b){return parseInt(a.slice(1),10)-parseInt(b.slice(1),10)});
+  R.gener=klice;
+  krokyRucni();
+  // zvýraznit řádek motorizace
+  var idx=KATALOG[zn].vozy.indexOf(vuz);
+  document.querySelectorAll('.mt-row').forEach(function(b){
+    if(b.getAttribute('onclick').indexOf('('+idx+',')>=0) b.classList.add('on')});
+}
+
+// ── Hlavička s údaji z registru (jen VIN cesta) ───────────────
+var HLAVICKA='';
+function hlavickaRegistr(kod,kw,zdroj){
+  HLAVICKA=
+    '<div class="card"><div class="auto-head">'+
+      logoZnackyHtml(stav.znacka)+
+      '<span class="auto-name">'+esc(stav.znacka)+' '+esc(stav.model)+'</span>'+
+      '<span class="tag'+(kod?(zdroj==='kodMotoru'?' q':''):' q')+'">'+
+        esc(kod||'kód nenalezen')+'</span>'+
+    '</div><div class="rows">'+
+      radek('Kód motoru z registru',stav.kodMotoru)+
+      radek('Typ',stav.typ)+
+      radek('Varianta',stav.varianta)+
+      // Renault a Dacia nekódují v 10. znaku VIN modelový rok
+      // (Thalia 2005 → 2003, Duster 2012 → 2004), tak se nezobrazuje.
+      // Renault a Dacia v 10. znaku modelový rok nekódují (Thalia 2005
+      // → 2003, Duster 2012 → 2004), tak se u nich nezobrazuje.
+      // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
+      // Renault, Dacia a Fiat v 10. znaku modelový rok nekódují
+      // (Thalia 2005 → 2003, Duster 2012 → 2004, Punto 199 má "0").
+      // MG ho kóduje, ale s vlastním pravidlem — viz mgRokZVin().
+      radek('Modelový rok (z VIN)',
+        (AKT_REZIM==='renault'||AKT_REZIM==='fiat'||AKT_REZIM==='korea'||
+         AKT_REZIM==='ford'||AKT_REZIM==='toyota')?'':
+        (AKT_REZIM==='mg'?mgRokZVin(stav.vin):rokZVin(stav.vin)))+
+      radek('Rok 1. registrace',
+        (AKT_REZIM==='fiat'||AKT_REZIM==='korea'||AKT_REZIM==='ford'||AKT_REZIM==='toyota')?(stav.rok||''):'')+
+      radek('Výkon',kw?kw+' kW':'')+
+      radek('Objem',stav.objem?stav.objem+' cm³':'')+
+      radek('Palivo',stav.palivo)+
+      radek('Pohon',stav.pohonRaw)+
+    '</div></div>';
+  $('out').innerHTML=HLAVICKA;
+}
+// Logo značky vozu do hlavičky — podle normalizovaného názvu z SOUBORY
+function logoZnackyHtml(znacka){
+  var zn=normZnacka(znacka);
+  if(!zn||!SOUBORY[zn]||!SOUBORY[zn].logo) return '';
+  return '<img class="auto-logo" src="'+SOUBORY[zn].logo+'" alt="'+esc(zn)+'" '+
+    'onerror="this.style.display=\'none\'">';
+}
+function radek(k,v){return v?'<div class="row"><span>'+esc(k)+'</span><span>'+esc(v)+'</span></div>':''}
+
+// ── Výběr položek v kategorii ─────────────────────────────────
+// Dvoustupňové ověření: vůz už je vybraný přes kódy skupiny,
+// tady se filtrují položky — prázdné kody = platí pro celou
+// skupinu, vyplněné = jen pro uvedené kódy.
+function pasujici(fl,kod){
+  return (fl||[]).filter(function(f){
+    if(!f.kody||!f.kody.length) return true;
+    // Renault: bez zvoleného kódu se položky neschovávají — přípona
+    // z registru nechodí a zákazník ji nezná. Vyhraje nejlevnější.
+    // Renault a Fiat: bez zvoleného kódu se položky NEskrývají —
+    // registr příponu (Renault) ani kód (Fiat) nedává a zákazník
+    // ho nezná. Vyhraje nejlevnější.
+    if(!kod) return AKT_REZIM==='renault'||AKT_REZIM==='fiat';
+    // U Opelu jsou kódy u dílů psané s mezerami ("Z 16 XE"), takže
+    // se porovnávají až po normalizaci. Ostatní značky beze změny.
+    if(AKT_REZIM==='opel') return opelKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='renault') return renKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='mg') return mgKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='fiat') return fiatKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='korea') return korKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='ford') return fordKodySeznam(f.kody).indexOf(kod)>=0;
+    if(AKT_REZIM==='toyota') return toyKodySeznam(f.kody).indexOf(kod)>=0;
+    return f.kody.indexOf(kod)>=0;
+  });
+}
+// Vítěz: podle pořadí značek, v rámci značky nejlevnější.
+// Výchozí Bosch → MAHLE → Febi, u MG Bosch → Blue Print → Febi.
+function vitez(items){
+  var P=prio();
+  for(var i=0;i<P.length;i++){
+    var b=items.filter(function(f){return f.znacka===P[i]});
+    if(b.length){
+      b.sort(function(a,c){return cena(a)-cena(c)});
+      return b[0];
+    }
+  }
+  return items.length?items.slice().sort(function(a,c){return cena(a)-cena(c)})[0]:null;
+}
+
+// ── Render výsledku (obě cesty, přepínače přes stav V) ────────
+function render(){
+  if(!V) return;
+  var html='';
+  // Hlavička z registru — z proměnné, ne z DOM (jinak by se množila)
+  if(!V.rucni) html+=HLAVICKA+olejHtml();
+
+  // Chipy pro volbu kódu (ruční cesta, skupina s více kódy)
+  if(V.chipy){
+    html+='<div class="card"><div class="section-title">Kód motoru</div>'+
+      '<div class="section-sub">Skupina má víc kódů a některé díly je rozlišují — vyber ten svůj (je na bloku motoru / v servisní knize).</div>'+
+      '<div class="chips">'+V.chipy.map(function(k){
+        return '<button class="chip'+(V.kod===k?' on':'')+'" onclick="zvolKod(\''+esc(k)+'\')">'+esc(k)+'</button>'}).join('')+
+      '</div>'+
+      '</div>';
+    // Bez zvoleného kódu se díly vůbec nezobrazují — jinak by vítězil
+    // náhodný univerzální díl a Bosch vázaný na kód by chyběl.
+    // U Renaultu se nabídka neblokuje — chip je zpřesnění, ne podmínka.
+    if(!V.kod && !V.nezavazne){
+      html+='<div class="card" style="text-align:center;color:var(--text-muted);font-size:13.5px">'+
+        'Vyberte kód motoru výše — teprve pak se zobrazí odpovídající filtry.</div>';
+      $('out').innerHTML=html; return;
+    }
+  }
+
+  V.vozy.forEach(function(x,ci){ html+=karta(x,ci); });
+
+  if(V.vice){
+    html+='<div class="card" style="padding:12px 16px;font-size:13px;color:var(--text-muted)">Kód <b>'+
+      esc(V.kod)+'</b> sedí na víc vozů — rozliš podle objemu a roků.</div>';
+  }
+  $('out').innerHTML=html;
+}
+
+function karta(x,ci){
+  var ks=V.karty[ci], sum=0, chybi=0;
+  var fs=Object.keys(CAT).map(function(c){
+    var vsechny=pasujici(x.filtry[c],V.kod);
+    var kab=(c==='kabinovy'?' kab':'');
+    if(!vsechny.length){
+      chybi++;
+      return '<div class="f none"><div class="f-top">'+
+        '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">—</span></div>'+
+        '<div class="f-part">nepřiřazeno</div>'+
+        '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(x.slug,CAT[c][1],'BOSCH')+'">Otevřít na Pegasu ↗</a></div>';
+    }
+    // Vítěz podle priority, nebo díl ručně zvolený z "dalších variant"
+    var w=null;
+    if(ks.volba[c]){
+      w=vsechny.filter(function(f){return f.dil===ks.volba[c]})[0]||null;
+    }
+    if(!w) w=vitez(vsechny);
+
+    // Kabinové: kvalita se vybírá na dlaždici v rámci JEDNÉ značky.
+    // Varianty = všechny díly té značky, pojmenované podle cross-ref
+    // (uhlik/premium), jinak podle pořadí ceny.
+    var varianty=null, aktivni=w;
+    if(c==='kabinovy'){
+      var teZnacky=vsechny.filter(function(f){return f.znacka===w.znacka})
+        .sort(function(a,b){return cena(a)-cena(b)});
+      // Max 3 volby: nejlevnější / prostřední / nejdražší.
+      // Při 4+ dílech se prostřední vybere ze středu seřazeného pole.
+      var vyb;
+      if(teZnacky.length<=3) vyb=teZnacky;
+      else vyb=[teZnacky[0],
+                teZnacky[Math.floor((teZnacky.length-1)/2)],
+                teZnacky[teZnacky.length-1]];
+      // Názvy: podle cross-ref, jinak podle pozice v ceně
+      var zaklad=teZnacky.filter(function(f){return f.uhlik||f.premium})[0]||teZnacky[0];
+      var pozice=['Základní','Uhlíkový','Premium'];
+      varianty=vyb.map(function(f,i){
+        var n;
+        if(f.dil===zaklad.uhlik) n='Uhlíkový';
+        else if(f.dil===zaklad.premium) n='Premium';
+        else if(f===zaklad) n='Základní';
+        else n=(vyb.length===1?'Základní':(i===vyb.length-1?'Premium':pozice[i]||'Vyšší'));
+        return {id:f.dil,n:n,f:f};
+      });
+      if(varianty.length>1){
+        var zvol=varianty.filter(function(v){return v.id===ks.kab})[0]||
+                 varianty.filter(function(v){return v.f===zaklad})[0]||varianty[0];
+        aktivni=zvol.f;
+      } else varianty=null;
+    }
+
+    sum+=cena(aktivni);
+    var ostatni;
+    if(c==='kabinovy'){
+      // Další varianty = po JEDNÉ položce za značku, bez ceny.
+      // Kvalitu si pak zvolíš přepínačem na dlaždici.
+      var videne={}; ostatni=[];
+      vsechny.forEach(function(f){
+        if(f.znacka===aktivni.znacka||videne[f.znacka]) return;
+        videne[f.znacka]=1; ostatni.push(f);
+      });
+      ostatni.sort(function(a,b){
+        return prio().indexOf(a.znacka)-prio().indexOf(b.znacka)});
+    } else {
+      ostatni=vsechny.filter(function(f){return f!==aktivni});
+      ostatni.sort(function(a,b){return cena(a)-cena(b)});
+    }
+    var rozbal=!!ks.rozbal[c];
+
+    // U kabinových se v seznamu variant ukazuje jen značka — číslo dílu
+    // je nezajímavé, kvalitu (základní/uhlík/premium) řeší přepínač na dlaždici.
+    var jenZnacka=(c==='kabinovy');
+
+    return '<div class="f'+kab+'"><div class="f-top">'+
+      '<span class="f-name">'+CAT[c][0]+'</span><span class="f-price">'+cena(aktivni)+' Kč</span></div>'+
+      '<div class="f-brand">'+znackaHtml(aktivni.znacka,aktivni.dil)+
+        (ks.volba[c]?' <span class="badge b" style="margin:0">ručně</span>':'')+'</div>'+
+      '<div style="height:6px"></div>'+
+      (varianty?'<div class="vars">'+varianty.map(function(v){
+        return '<button class="var-btn'+(v.f===aktivni?' on':'')+
+          '" onclick="prepniKab('+ci+',\''+v.id+'\')">'+v.n+' · '+cena(v.f)+' Kč</button>'}).join('')+'</div>':'')+
+      '<a class="f-link" target="_blank" rel="noopener" href="'+odkaz(aktivni._slug||x.slug,CAT[c][1],aktivni.znacka)+'">Otevřít na Pegasu ↗</a>'+
+      (aktivni.kody&&aktivni.kody.length?'<br><span class="badge b">jen '+esc(aktivni.kody.join(', '))+'</span>':'')+
+      (ostatni.length?'<div class="more"><button class="more-btn" onclick="rozbalDalsi('+ci+',\''+c+'\')">'+
+        (rozbal?'Skrýt další varianty':'Další varianty ('+ostatni.length+')')+'</button>'+
+        (rozbal?'<div class="more-list">'+ostatni.map(function(f){
+          return '<div class="alt-row">'+
+            '<button class="alt-pick" onclick="zvolDil('+ci+',\''+c+'\',\''+esc(f.dil)+'\')">'+
+              '<span class="alt-zn">'+znackaHtmlMaly(f.znacka)+'</span>'+
+              (jenZnacka?'':'<span class="p">'+esc(f.dil)+'</span>')+
+              (f.kody&&f.kody.length?'<span class="badge b" style="margin:0">'+esc(f.kody.join(','))+'</span>':'')+
+              (jenZnacka?'':'<b class="alt-cena">'+cena(f)+' Kč</b>')+
+            '</button>'+
+            '<a class="alt-link" target="_blank" rel="noopener" title="Otevřít na Pegasu" '+
+              'href="'+odkaz(f._slug||x.slug,CAT[c][1],f.znacka)+'">↗</a>'+
+            '</div>'}).join('')+
+          (ks.volba[c]?'<button class="more-btn" style="margin-top:6px" onclick="zvolDil('+ci+',\''+c+'\',null)">← Zpět na automatický výběr</button>':'')+
+          '</div>':'')+
+        '</div>':'')+
+      '</div>';
+  }).join('');
+
+  return '<div class="card">'+
+    ((V.vice||V.rucni)?'<div class="auto-head"><span class="auto-name">'+esc(x.model)+' '+esc(x.motor)+' '+esc(x.vykon_kw)+' kW</span>'+
+      '<span class="auto-meta">'+esc(x.roky)+' · '+esc(x.palivo)+'</span>'+
+      '<span class="tag">'+esc(x.kody.join(' / '))+'</span></div>':'')+
+    '<div class="filters">'+fs+'</div>'+
+    '<div class="total"><span>Filtry celkem'+(chybi?' ('+chybi+' chybí)':'')+'</span><b>'+sum+' Kč</b></div></div>';
+}
+
+function prepniKab(ci,id){ V.karty[ci].kab=id; render(); }
+function rozbalDalsi(ci,c){ V.karty[ci].rozbal[c]=!V.karty[ci].rozbal[c]; render(); }
+// Ruční volba dílu z "dalších variant"; null = zpět na automatiku
+function zvolDil(ci,c,dil){
+  V.karty[ci].volba[c]=dil;
+  if(c==='kabinovy') V.karty[ci].kab=null;   // kvalita se dovybere na dlaždici
+  V.karty[ci].rozbal[c]=false;   // po výběru seznam sbalit
+  render();
+}
+
+$('vinInput').addEventListener('keydown',function(e){if(e.key==='Enter')nactiVin()});
+</script>
+</body>
+</html>
