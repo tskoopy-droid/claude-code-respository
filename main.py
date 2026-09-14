@@ -23,48 +23,20 @@ async def get_stk(vin: str):
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--disable-blink-features=AutomationControlled",
                     "--disable-gpu"
                 ]
             )
             
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                locale="cs-CZ",
-                viewport={"width": 1280, "height": 800}
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
-
-            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page = await context.new_page()
 
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
-            await asyncio.sleep(2)
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_selector("#Vin", timeout=10000)
+            await page.fill("#Vin", vin)
 
-            target_frame = None
-            vin_field = None
-
-            for frame in page.frames:
-                try:
-                    field = await frame.query_selector("#Vin, input[name='Vin'], input[id*='Vin']")
-                    if field:
-                        target_frame = frame
-                        vin_field = field
-                        break
-                except Exception:
-                    pass
-
-            if not vin_field or not target_frame:
-                body_html = await page.inner_html("body")
-                await browser.close()
-                return {
-                    "status": "error",
-                    "message": "Políčko pro VIN nebylo nalezeno ani v iframech.",
-                    "body_snippet": body_html[:500]
-                }
-
-            await vin_field.fill(vin)
-
-            captcha_img = await target_frame.wait_for_selector("#CaptchaImage", timeout=10000)
+            captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
             if not captcha_img:
                 await browser.close()
                 return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
@@ -82,7 +54,7 @@ async def get_stk(vin: str):
 
             if task_resp.get("errorId") != 0:
                 await browser.close()
-                return {"status": "error", "message": f"AntiCaptcha chyba: {task_resp}"}
+                return {"status": "error", "message": f"AntiCaptcha error: {task_resp}"}
 
             task_id = task_resp["taskId"]
 
@@ -102,13 +74,21 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            await target_frame.fill("#Captcha", captcha_text)
-            await target_frame.click("#btnSubmit")
+            await page.fill("#Captcha", captcha_text)
+            await page.click("#btnSubmit")
 
-            await target_frame.wait_for_selector("#table-results", timeout=15000)
-            table_element = await target_frame.query_selector("#table-results")
+            await page.wait_for_selector("#table-results", timeout=15000)
+            table_element = await page.query_selector("#table-results")
             text_content = await table_element.inner_text()
             lines = [line.strip() for line in text_content.split("\n") if line.strip()]
 
             await browser.close()
             return {"status": "ok", "vin": vin, "data": lines}
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
