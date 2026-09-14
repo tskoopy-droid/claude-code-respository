@@ -34,30 +34,37 @@ async def get_stk(vin: str):
                 viewport={"width": 1280, "height": 800}
             )
 
-            # Maskování automatizovaného prohlížeče
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
             page = await context.new_page()
 
-            # Kompletní načtení stránky
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="load", timeout=30000)
-            
-            # Vyhledání a vyplnění pola VIN
-            try:
-                vin_field = await page.wait_for_selector("#Vin, input[name='Vin'], input[id*='Vin']", timeout=15000)
-                await vin_field.fill(vin)
-            except Exception:
-                inputs = await page.eval_on_selector_all("input", "elements => elements.map(e => ({id: e.id, name: e.name, type: e.type}))")
-                title = await page.title()
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
+            await asyncio.sleep(2)
+
+            target_frame = None
+            vin_field = None
+
+            for frame in page.frames:
+                try:
+                    field = await frame.query_selector("#Vin, input[name='Vin'], input[id*='Vin']")
+                    if field:
+                        target_frame = frame
+                        vin_field = field
+                        break
+                except Exception:
+                    pass
+
+            if not vin_field or not target_frame:
+                body_html = await page.inner_html("body")
                 await browser.close()
                 return {
                     "status": "error",
-                    "message": f"Formulářové pole pro VIN nebyla nalezena. Titulek: '{title}'",
-                    "found_inputs": inputs
+                    "message": "Políčko pro VIN nebylo nalezeno ani v iframech.",
+                    "body_snippet": body_html[:500]
                 }
 
-            # Získání CAPTCHA
-            captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
+            await vin_field.fill(vin)
+
+            captcha_img = await target_frame.wait_for_selector("#CaptchaImage", timeout=10000)
             if not captcha_img:
                 await browser.close()
                 return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
@@ -65,7 +72,6 @@ async def get_stk(vin: str):
             screenshot_bytes = await captcha_img.screenshot()
             b64_image = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-            # Odeslání do Anti-Captcha
             task_resp = requests.post("https://api.anti-captcha.com/createTask", json={
                 "clientKey": ANTI_CAPTCHA_KEY,
                 "task": {
@@ -80,7 +86,6 @@ async def get_stk(vin: str):
 
             task_id = task_resp["taskId"]
 
-            # Čekání na řešení CAPTCHA
             captcha_text = None
             for _ in range(15):
                 await asyncio.sleep(2)
@@ -97,23 +102,13 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            # Vyplnění a odeslání
-            await page.fill("#Captcha", captcha_text)
-            await page.click("#btnSubmit")
+            await target_frame.fill("#Captcha", captcha_text)
+            await target_frame.click("#btnSubmit")
 
-            # Načtení výsledků
-            await page.wait_for_selector("#table-results", timeout=15000)
-            table_element = await page.query_selector("#table-results")
+            await target_frame.wait_for_selector("#table-results", timeout=15000)
+            table_element = await target_frame.query_selector("#table-results")
             text_content = await table_element.inner_text()
             lines = [line.strip() for line in text_content.split("\n") if line.strip()]
 
             await browser.close()
             return {"status": "ok", "vin": vin, "data": lines}
-
-    except Exception as e:
-        return {
-            "status": "error",
-            "exception_type": type(e).__name__,
-            "message": str(e),
-            "traceback": traceback.format_exc()
-        }
