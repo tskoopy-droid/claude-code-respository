@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 
 app = FastAPI()
 
-ANTI_CAPTCHA_KEY = "VÁŠ_ANTI_CAPTCHA_API_KEY"
+ANTI_CAPTCHA_KEY = "1f0a6a869b38e9ef3c1c0fd97546d2f4"
 
 def solve_captcha(b64_image: str) -> str:
     create_task_res = requests.post("https://api.anti-captcha.com/createTask", json={
