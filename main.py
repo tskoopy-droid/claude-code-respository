@@ -23,7 +23,8 @@ async def get_stk(vin: str):
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--disable-blink-features=AutomationControlled"
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-gpu"
                 ]
             )
             
@@ -33,30 +34,29 @@ async def get_stk(vin: str):
                 viewport={"width": 1280, "height": 800}
             )
 
-            # Odstranění detekce webdriveru
+            # Maskování automatizovaného prohlížeče
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
             page = await context.new_page()
 
-            # Načtení stránky
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
+            # Kompletní načtení stránky
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="load", timeout=30000)
             
-            # Kontrola přítomnosti prvku #Vin
+            # Vyhledání a vyplnění pola VIN
             try:
-                await page.wait_for_selector("#Vin", timeout=10000)
+                vin_field = await page.wait_for_selector("#Vin, input[name='Vin'], input[id*='Vin']", timeout=15000)
+                await vin_field.fill(vin)
             except Exception:
-                # Pokud prvek chybí, vrátíme titulek a obsah načtené stránky pro analýzu
+                inputs = await page.eval_on_selector_all("input", "elements => elements.map(e => ({id: e.id, name: e.name, type: e.type}))")
                 title = await page.title()
-                body_text = await page.inner_text("body")
                 await browser.close()
                 return {
                     "status": "error",
-                    "message": f"Prvek #Vin nenalezen. Titulek stránky: '{title}'",
-                    "page_preview": body_text[:300]
+                    "message": f"Formulářové pole pro VIN nebyla nalezena. Titulek: '{title}'",
+                    "found_inputs": inputs
                 }
 
-            await page.fill("#Vin", vin)
-
+            # Získání CAPTCHA
             captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
             if not captcha_img:
                 await browser.close()
@@ -80,6 +80,7 @@ async def get_stk(vin: str):
 
             task_id = task_resp["taskId"]
 
+            # Čekání na řešení CAPTCHA
             captcha_text = None
             for _ in range(15):
                 await asyncio.sleep(2)
@@ -96,9 +97,11 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
+            # Vyplnění a odeslání
             await page.fill("#Captcha", captcha_text)
             await page.click("#btnSubmit")
 
+            # Načtení výsledků
             await page.wait_for_selector("#table-results", timeout=15000)
             table_element = await page.query_selector("#table-results")
             text_content = await table_element.inner_text()
