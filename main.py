@@ -33,22 +33,27 @@ async def get_stk(vin: str):
             )
             page = await context.new_page()
 
-            # Načtení hlavní stránky
             response = await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
             
-            # Kontrola HTTP stavu
             if response and response.status >= 400:
                 page_title = await page.title()
                 await browser.close()
                 return {"status": "error", "message": f"Web vrátil HTTP {response.status} ({page_title})"}
 
-            # Čekání na přítomnost prvku v DOMu (bez nutnosti viditelnosti)
+            # Pokus o vyhledání #Vin, při selhání vyčte všechny <input> na stránce
             try:
-                await page.wait_for_selector("#Vin", state="attached", timeout=15000)
+                await page.wait_for_selector("#Vin", state="attached", timeout=10000)
             except Exception:
+                inputs = await page.eval_on_selector_all(
+                    "input", 
+                    "elements => elements.map(e => ({id: e.id, name: e.name, type: e.type}))"
+                )
                 title = await page.title()
                 await browser.close()
-                return {"status": "error", "message": f"Prvek #Vin nenalezen. Titulek stránky: '{title}'"}
+                return {
+                    "status": "error", 
+                    "message": f"Prvek #Vin nenalezen. Nalezené vstupy na stránce: {inputs}"
+                }
 
             await page.fill("#Vin", vin)
 
