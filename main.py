@@ -1,5 +1,3 @@
-ANTI_CAPTCHA_KEY = "1f0a6a869b38e9ef3c1c0fd97546d2f4"
-
 import base64
 import asyncio
 import traceback
@@ -9,7 +7,7 @@ import requests
 
 app = FastAPI()
 
-ANTI_CAPTCHA_KEY = "VÁŠ_ANTI_CAPTCHA_KEY"
+ANTI_CAPTCHA_KEY = "1f0a6a869b38e9ef3c1c0fd97546d2f4"
 
 @app.get("/")
 async def root():
