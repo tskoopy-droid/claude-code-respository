@@ -1,3 +1,5 @@
+ANTI_CAPTCHA_KEY = "1f0a6a869b38e9ef3c1c0fd97546d2f4"
+
 import base64
 import asyncio
 import traceback
@@ -7,7 +9,7 @@ import requests
 
 app = FastAPI()
 
-ANTI_CAPTCHA_KEY = "1f0a6a869b38e9ef3c1c0fd97546d2f4"
+ANTI_CAPTCHA_KEY = "VÁŠ_ANTI_CAPTCHA_KEY"
 
 @app.get("/")
 async def root():
@@ -27,14 +29,19 @@ async def get_stk(vin: str):
                 ]
             )
             
-            context = await browser.new_context()
+            # Maskování automatizovaného prohlížeče
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
             page = await context.new_page()
 
-            # 1. Načtení stránky
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
+            # Rychlé načtení DOM stromu místo čekání na kompletní síťový klid
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=20000)
+            
+            # Čekání na přítomnost prvků
+            await page.wait_for_selector("#Vin", timeout=10000)
             await page.fill("#Vin", vin)
 
-            # 2. CAPTCHA obrázek
             captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
             if not captcha_img:
                 await browser.close()
@@ -43,7 +50,6 @@ async def get_stk(vin: str):
             screenshot_bytes = await captcha_img.screenshot()
             b64_image = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-            # 3. Odeslání do Anti-Captcha
             task_resp = requests.post("https://api.anti-captcha.com/createTask", json={
                 "clientKey": ANTI_CAPTCHA_KEY,
                 "task": {
@@ -58,7 +64,6 @@ async def get_stk(vin: str):
 
             task_id = task_resp["taskId"]
 
-            # 4. Čekání na řešení
             captcha_text = None
             for _ in range(15):
                 await asyncio.sleep(2)
@@ -75,12 +80,10 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            # 5. Odeslání formuláře
             await page.fill("#Captcha", captcha_text)
             await page.click("#btnSubmit")
 
-            # 6. Vyčtení výsledků
-            await page.wait_for_selector("#table-results", timeout=12000)
+            await page.wait_for_selector("#table-results", timeout=15000)
             table_element = await page.query_selector("#table-results")
             text_content = await table_element.inner_text()
             lines = [line.strip() for line in text_content.split("\n") if line.strip()]
@@ -89,7 +92,6 @@ async def get_stk(vin: str):
             return {"status": "ok", "vin": vin, "data": lines}
 
     except Exception as e:
-        # Vrací přesný popis chyby místo obecné 500
         return {
             "status": "error",
             "exception_type": type(e).__name__,
