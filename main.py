@@ -23,21 +23,38 @@ async def get_stk(vin: str):
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--disable-gpu"
+                    "--disable-blink-features=AutomationControlled"
                 ]
             )
             
-            # Maskování automatizovaného prohlížeče
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                locale="cs-CZ",
+                viewport={"width": 1280, "height": 800}
             )
+
+            # Odstranění detekce webdriveru
+            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
             page = await context.new_page()
 
-            # Rychlé načtení DOM stromu místo čekání na kompletní síťový klid
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=20000)
+            # Načtení stránky
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
             
-            # Čekání na přítomnost prvků
-            await page.wait_for_selector("#Vin", timeout=10000)
+            # Kontrola přítomnosti prvku #Vin
+            try:
+                await page.wait_for_selector("#Vin", timeout=10000)
+            except Exception:
+                # Pokud prvek chybí, vrátíme titulek a obsah načtené stránky pro analýzu
+                title = await page.title()
+                body_text = await page.inner_text("body")
+                await browser.close()
+                return {
+                    "status": "error",
+                    "message": f"Prvek #Vin nenalezen. Titulek stránky: '{title}'",
+                    "page_preview": body_text[:300]
+                }
+
             await page.fill("#Vin", vin)
 
             captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
@@ -48,6 +65,7 @@ async def get_stk(vin: str):
             screenshot_bytes = await captcha_img.screenshot()
             b64_image = base64.b64encode(screenshot_bytes).decode("utf-8")
 
+            # Odeslání do Anti-Captcha
             task_resp = requests.post("https://api.anti-captcha.com/createTask", json={
                 "clientKey": ANTI_CAPTCHA_KEY,
                 "task": {
@@ -58,7 +76,7 @@ async def get_stk(vin: str):
 
             if task_resp.get("errorId") != 0:
                 await browser.close()
-                return {"status": "error", "message": f"AntiCaptcha error: {task_resp}"}
+                return {"status": "error", "message": f"AntiCaptcha chyba: {task_resp}"}
 
             task_id = task_resp["taskId"]
 
