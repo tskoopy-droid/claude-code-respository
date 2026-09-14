@@ -23,20 +23,36 @@ async def get_stk(vin: str):
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--disable-gpu"
+                    "--disable-blink-features=AutomationControlled"
                 ]
             )
             
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 720}
             )
             page = await context.new_page()
 
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=20000)
-            await page.wait_for_selector("#Vin", timeout=10000)
+            # Načtení hlavní stránky
+            response = await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
+            
+            # Kontrola HTTP stavu
+            if response and response.status >= 400:
+                page_title = await page.title()
+                await browser.close()
+                return {"status": "error", "message": f"Web vrátil HTTP {response.status} ({page_title})"}
+
+            # Čekání na přítomnost prvku v DOMu (bez nutnosti viditelnosti)
+            try:
+                await page.wait_for_selector("#Vin", state="attached", timeout=15000)
+            except Exception:
+                title = await page.title()
+                await browser.close()
+                return {"status": "error", "message": f"Prvek #Vin nenalezen. Titulek stránky: '{title}'"}
+
             await page.fill("#Vin", vin)
 
-            captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
+            captcha_img = await page.wait_for_selector("#CaptchaImage", state="attached", timeout=10000)
             if not captcha_img:
                 await browser.close()
                 return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
