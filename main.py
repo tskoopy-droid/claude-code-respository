@@ -33,16 +33,15 @@ async def get_stk(vin: str):
             )
             page = await context.new_page()
 
-            response = await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
+            # 1. Načtení s čekáním na dokončení síťových požadavků DevExpressu
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
             
-            if response and response.status >= 400:
-                page_title = await page.title()
-                await browser.close()
-                return {"status": "error", "message": f"Web vrátil HTTP {response.status} ({page_title})"}
+            # Krátká pauza na vykreslení JS prvků
+            await asyncio.sleep(2)
 
-            # Pokus o vyhledání #Vin, při selhání vyčte všechny <input> na stránce
+            # 2. Čekání na zobrazení pole #Vin
             try:
-                await page.wait_for_selector("#Vin", state="attached", timeout=10000)
+                await page.wait_for_selector("#Vin", timeout=15000)
             except Exception:
                 inputs = await page.eval_on_selector_all(
                     "input", 
@@ -52,12 +51,12 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {
                     "status": "error", 
-                    "message": f"Prvek #Vin nenalezen. Nalezené vstupy na stránce: {inputs}"
+                    "message": f"Prvek #Vin stále nenalezen po JS renderingu. Titulek: '{title}'. Inputs: {inputs}"
                 }
 
             await page.fill("#Vin", vin)
 
-            captcha_img = await page.wait_for_selector("#CaptchaImage", state="attached", timeout=10000)
+            captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
             if not captcha_img:
                 await browser.close()
                 return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
