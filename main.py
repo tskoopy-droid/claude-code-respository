@@ -79,13 +79,25 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            # 4. Vyplnění CAPTCHA a odeslání
+            # 4. Vyplnění CAPTCHA a potvrdit stiskem Enter i klikem
             await page.fill("#captcha_TB_I", captcha_text)
+            await page.press("#captcha_TB_I", "Enter")
             await page.click("#btnSubmit")
 
-            # 5. Vyčkání na výstupní tabulku
-            await page.wait_for_selector("#table-results", timeout=15000)
-            table_element = await page.query_selector("#table-results")
+            # 5. Vyčkání na výstupní tabulku nebo odchycení chyby
+            try:
+                await page.wait_for_selector("#table-results, table.table, .result-table", timeout=15000)
+            except Exception:
+                body_text = await page.inner_text("body")
+                # Zkrácení obsahu na podstatný text bez bílých znaků
+                clean_text = " ".join(body_text.split())
+                await browser.close()
+                return {
+                    "status": "error",
+                    "message": f"Tabulka nenalezena. Reakce webu: '{clean_text[:300]}...'"
+                }
+
+            table_element = await page.query_selector("#table-results, table.table, .result-table")
             text_content = await table_element.inner_text()
             lines = [line.strip() for line in text_content.split("\n") if line.strip()]
 
