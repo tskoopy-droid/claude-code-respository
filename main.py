@@ -33,24 +33,18 @@ async def get_stk(vin: str):
             )
             page = await context.new_page()
 
-            await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
+            await page.goto("https://www.kontrolatachometru.cz/", wait_until="domcontentloaded", timeout=25000)
+            await page.wait_for_selector("#Vin", state="attached", timeout=15000)
+            await page.fill("#Vin", vin)
 
-            # 1. Vyplnění VIN pomocí emulace klávesnice pro DevExpress
-            await page.wait_for_selector("#VIN", timeout=15000)
-            await page.focus("#VIN")
-            await page.keyboard.type(vin, delay=30)
-            await page.dispatch_event("#VIN", "change")
-
-            # 2. Zachycení CAPTCHA obrázku
-            captcha_img = await page.wait_for_selector("#captcha_IMG, #CaptchaImage, img[src*='Captcha']", timeout=10000)
+            captcha_img = await page.wait_for_selector("#CaptchaImage", state="attached", timeout=10000)
             if not captcha_img:
                 await browser.close()
-                return {"status": "error", "message": "Element CAPTCHA obrázku nenalezen"}
+                return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
 
             screenshot_bytes = await captcha_img.screenshot()
             b64_image = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-            # 3. Odeslání do Anti-Captcha
             task_resp = requests.post("https://api.anti-captcha.com/createTask", json={
                 "clientKey": ANTI_CAPTCHA_KEY,
                 "task": {
@@ -81,36 +75,33 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            # 4. Vyplnění CAPTCHA a odeslání
-            await page.focus("#captcha_TB_I")
-            await page.keyboard.type(captcha_text, delay=30)
-            await page.dispatch_event("#captcha_TB_I", "change")
+            await page.fill("#Captcha", captcha_text)
 
-            # Odeslání formuláře a čekání na dokončení síťového požadavku
+            # Čekání na odeslání a načtení odpovědi serveru
             await asyncio.gather(
-                page.wait_for_load_state("networkidle", timeout=15000),
+                page.wait_for_load_state("domcontentloaded"),
                 page.click("#btnSubmit")
             )
 
-            # 5. Vyčkání na výstupní tabulku nebo zachycení chybové zprávy
+            # Pokus o vyhledání tabulky výsledků
             try:
-                await page.wait_for_selector("#table-results, .table-responsive, table", timeout=10000)
+                await page.wait_for_selector("#table-results", timeout=12000)
+                table_element = await page.query_selector("#table-results")
+                text_content = await table_element.inner_text()
+                lines = [line.strip() for line in text_content.split("\n") if line.strip()]
+
+                await browser.close()
+                return {"status": "ok", "vin": vin, "data": lines}
             except Exception:
-                # Kontrola přítomnosti chybového hlášení na stránce
-                error_el = await page.query_selector(".text-danger, .field-validation-error, .validation-summary-errors")
-                err_msg = await error_el.inner_text() if error_el else "Neznámá chyba při zpracování formuláře"
+                # Pokud tabulka nenastala, načte se chybový text přímo z obsahu stránky
+                body_text = await page.inner_text("body")
+                clean_text = " ".join(body_text.split())
+                
                 await browser.close()
                 return {
-                    "status": "error",
-                    "message": f"Formulář neprošel. Chybová hláška webu: '{err_msg.strip()}'"
+                    "status": "error", 
+                    "message": f"Tabulka nenalezena. Obsah stránky po odeslání: {clean_text[:200]}..."
                 }
-
-            table_element = await page.query_selector("#table-results, .table-responsive, table")
-            text_content = await table_element.inner_text()
-            lines = [line.strip() for line in text_content.split("\n") if line.strip()]
-
-            await browser.close()
-            return {"status": "ok", "vin": vin, "data": lines}
 
     except Exception as e:
         return {
