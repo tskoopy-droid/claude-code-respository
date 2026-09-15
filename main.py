@@ -33,37 +33,22 @@ async def get_stk(vin: str):
             )
             page = await context.new_page()
 
-            # 1. Načtení s čekáním na dokončení síťových požadavků DevExpressu
             await page.goto("https://www.kontrolatachometru.cz/", wait_until="networkidle", timeout=30000)
-            
-            # Krátká pauza na vykreslení JS prvků
-            await asyncio.sleep(2)
 
-            # 2. Čekání na zobrazení pole #Vin
-            try:
-                await page.wait_for_selector("#Vin", timeout=15000)
-            except Exception:
-                inputs = await page.eval_on_selector_all(
-                    "input", 
-                    "elements => elements.map(e => ({id: e.id, name: e.name, type: e.type}))"
-                )
-                title = await page.title()
-                await browser.close()
-                return {
-                    "status": "error", 
-                    "message": f"Prvek #Vin stále nenalezen po JS renderingu. Titulek: '{title}'. Inputs: {inputs}"
-                }
+            # 1. Vyplnění VIN
+            await page.wait_for_selector("#VIN", timeout=15000)
+            await page.fill("#VIN", vin)
 
-            await page.fill("#Vin", vin)
-
-            captcha_img = await page.wait_for_selector("#CaptchaImage", timeout=10000)
+            # 2. Zachycení CAPTCHA obrázku
+            captcha_img = await page.wait_for_selector("#captcha_IMG, #CaptchaImage, img[src*='Captcha']", timeout=10000)
             if not captcha_img:
                 await browser.close()
-                return {"status": "error", "message": "Element #CaptchaImage nenalezen"}
+                return {"status": "error", "message": "Element CAPTCHA obrázku nenalezen"}
 
             screenshot_bytes = await captcha_img.screenshot()
             b64_image = base64.b64encode(screenshot_bytes).decode("utf-8")
 
+            # 3. Odeslání do Anti-Captcha
             task_resp = requests.post("https://api.anti-captcha.com/createTask", json={
                 "clientKey": ANTI_CAPTCHA_KEY,
                 "task": {
@@ -94,9 +79,11 @@ async def get_stk(vin: str):
                 await browser.close()
                 return {"status": "error", "message": "AntiCaptcha timeout"}
 
-            await page.fill("#Captcha", captcha_text)
+            # 4. Vyplnění CAPTCHA a odeslání
+            await page.fill("#captcha_TB_I", captcha_text)
             await page.click("#btnSubmit")
 
+            # 5. Vyčkání na výstupní tabulku
             await page.wait_for_selector("#table-results", timeout=15000)
             table_element = await page.query_selector("#table-results")
             text_content = await table_element.inner_text()
